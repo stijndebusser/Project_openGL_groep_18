@@ -39,3 +39,22 @@
 
 # debug information files
 *.dwo
+
+# Visual Studio
+
+.vs/
+
+# CMake / build folders
+
+out/
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+
+# Optional (nice to ignore)
+
+*.sln
+*.vcxproj*
+*.user
+

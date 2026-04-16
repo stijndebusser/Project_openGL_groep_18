@@ -1,0 +1,1 @@
+voorlopig brute force  -> later forward differencing

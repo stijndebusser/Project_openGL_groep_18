@@ -10,6 +10,10 @@
 #include "stb_image.h"
 #include <filesystem>
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -32,7 +36,8 @@ float lastFrame = 0.0f;
 
 int main()
 {
-	std::cout << std::filesystem::current_path() << std::endl;
+	Assimp::Importer importer;
+	std::cout << "Assimp linked correctly!" << std::endl;
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();

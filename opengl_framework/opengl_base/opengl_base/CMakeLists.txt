@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
+
+# vcpkg toolchain moet vóór project()
+set(CMAKE_TOOLCHAIN_FILE "C:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+
 project(opengl_project)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
@@ -9,17 +14,23 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 find_package(OpenGL REQUIRED)
 
-# find the required packages
 find_package(GLM REQUIRED)
 message(STATUS "GLM included at ${GLM_INCLUDE_DIR}")
+
 find_package(GLFW3 REQUIRED)
 message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
 
-set(LIBS glfw3 opengl32)
+find_package(assimp CONFIG REQUIRED)
 
-add_library(GLAD "glad.c" "shaders/shader.h" "stb_image.cpp")
-set(LIBS ${LIBS} GLAD)
+set(LIBS glfw3 opengl32 GLAD assimp::assimp)
+
+add_library(GLAD glad.c)
 
 include_directories(${CMAKE_SOURCE_DIR}/includes)
-add_executable(opengl_project main.cpp stb_image.h main.cpp "shaders/shader.h" "stb_image.cpp")
+
+add_executable(opengl_project
+    main.cpp
+    stb_image.cpp
+)
+
 target_link_libraries(opengl_project ${LIBS})

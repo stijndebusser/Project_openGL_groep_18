@@ -15,7 +15,7 @@ find_package(GLM REQUIRED)
 find_package(GLFW3 REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
-add_library(GLAD glad.c)
+add_library(GLAD glad.c  "bezier.cpp" )
 
 include_directories(${CMAKE_SOURCE_DIR}/includes)
 include_directories(${CMAKE_SOURCE_DIR})
@@ -24,7 +24,7 @@ add_executable(opengl_project
     main.cpp
     stb_image.cpp
     Model.cpp
-)
+  "bezier.cpp" )
 
 target_link_libraries(opengl_project PRIVATE
     glfw3

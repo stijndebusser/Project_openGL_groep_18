@@ -420,7 +420,7 @@ int main()
 	stbi_set_flip_vertically_on_load(true);
 
 	Shader shader("../../../shaders/model.vs", "../../../shaders/model.fs");
-	Model ourModel("../../../resources/objects/backpack/backpack.obj");
+	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 
 
 	while (!glfwWindowShouldClose(window))

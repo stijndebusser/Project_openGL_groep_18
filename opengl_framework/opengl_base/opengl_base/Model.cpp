@@ -25,7 +25,7 @@ void Model::loadModel(const std::string& path)
     const aiScene* scene = importer.ReadFile(
         path,
         aiProcess_Triangulate |
-        aiProcess_FlipUVs |
+        //aiProcess_FlipUVs |--> best met parameter
         aiProcess_GenSmoothNormals
     );
 

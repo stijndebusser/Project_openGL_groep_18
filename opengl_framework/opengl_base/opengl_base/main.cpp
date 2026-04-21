@@ -371,6 +371,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 #include "Camera.h"
 #include "Shader.h"
 #include "Model.h"
+#include "bezier.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
@@ -395,7 +396,7 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Model Loading", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Starwars", nullptr, nullptr);
 	if (window == nullptr)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -417,11 +418,80 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 
+	// transparency
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	stbi_set_flip_vertically_on_load(true);
 
-	Shader shader("../../../shaders/model.vs", "../../../shaders/model.fs");
+	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
+	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 
+	// segment 1
+	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
+	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
+	glm::vec3 p2(-10.0f, -3.0f, -10.0f); // control 2
+	glm::vec3 p3(-10.0f, 0.0f, 10.0f); // end point
+
+	// segment 2
+	glm::vec3 p4 = p3;                       // start segment 2, start at end point of segment 1
+	glm::vec3 p5(-10.0f, 3.0f, 30.0f);     // smoothness check: p5 - p4 == p3 - p2 (Both are 0, 3, 20)
+	glm::vec3 p6(10.0f, -3.0f, 30.0f);     // smoothness check: p7 - p6 == p1 - p0 (Both are 0, 3, -20)
+	glm::vec3 p7 = p0;                       // complete loop with end at the start of segment 1
+
+	std::vector<float> track1 = Bezier::GenerateTrackMesh(50, 1.0f, p0, p1, p2, p3);
+	std::vector<float> track2 = Bezier::GenerateTrackMesh(50, 1.0f, p4, p5, p6, p7);
+
+	// all segments in one ful track
+	std::vector<float> fullTrack = track1;
+	fullTrack.insert(fullTrack.end(), track2.begin(), track2.end());
+
+	unsigned int railVBO, railVAO;
+	glGenVertexArrays(1, &railVAO);
+	glGenBuffers(1, &railVBO);
+
+	glBindVertexArray(railVAO);
+
+	glBindBuffer(GL_ARRAY_BUFFER, railVBO);
+	glBufferData(GL_ARRAY_BUFFER, fullTrack.size() * sizeof(float), fullTrack.data(), GL_STATIC_DRAW);
+
+	// positions
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+	// texture coordinates
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+
+	unsigned int trackTexture;
+
+	glGenTextures(1, &trackTexture);
+	glBindTexture(GL_TEXTURE_2D, trackTexture);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	int width, height, nrChannels;
+	stbi_set_flip_vertically_on_load(true);
+	unsigned char* data = stbi_load("../../../textures/meteor-shower-transparent.png", &width, &height, &nrChannels, 0);
+	if (data)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);
+
+	trackShader.use();
+	trackShader.setInt("trackTexture", 0);
+	modelShader.use();
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -431,28 +501,33 @@ int main()
 
 		processInput(window);
 
-		glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
+		glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		shader.use();
-
-		glm::mat4 projection = glm::perspective(
-			glm::radians(camera.Zoom),
-			static_cast<float>(SCR_WIDTH) / static_cast<float>(SCR_HEIGHT),
-			0.1f,
-			100.0f
-		);
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), static_cast<float>(SCR_WIDTH) / static_cast<float>(SCR_HEIGHT), 0.1f, 100.0f);
 		glm::mat4 view = camera.GetViewMatrix();
 
-		shader.setMat4("projection", projection);
-		shader.setMat4("view", view);
+		modelShader.use();
+		modelShader.setMat4("projection", projection);
+		modelShader.setMat4("view", view);
 
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(0.0f, -1.75f, 0.0f));
-		model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-		shader.setMat4("model", model);
+		glm::mat4 modelMat = glm::mat4(1.0f);
+		modelMat = glm::translate(modelMat, glm::vec3(0.0f, -1.75f, 0.0f));
+		modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
+		modelShader.setMat4("model", modelMat);
+		ourModel.Draw(modelShader);
 
-		ourModel.Draw(shader);
+		trackShader.use();
+		trackShader.setMat4("projection", projection);
+		trackShader.setMat4("view", view);
+		glm::mat4 trackModelMat = glm::mat4(1.0f);
+		trackShader.setMat4("model", trackModelMat);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, trackTexture);
+
+		glBindVertexArray(railVAO);
+		glDrawArrays(GL_TRIANGLES, 0, fullTrack.size() / 5);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

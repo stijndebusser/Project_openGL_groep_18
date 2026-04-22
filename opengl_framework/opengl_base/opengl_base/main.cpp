@@ -30,7 +30,6 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// Zet afgelegde afstand om naar de juiste t-waarde via interpolatie in de lookup table
 float GetTimeAtDistance(
     float distance,
     const std::vector<Bezier::LookupEntry>& lookupTable)
@@ -97,26 +96,22 @@ int main()
     Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
     Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 
-    // segment 1
     glm::vec3 p0(10.0f, 0.0f, 10.0f);
     glm::vec3 p1(10.0f, 3.0f, -10.0f);
     glm::vec3 p2(-10.0f, -3.0f, -10.0f);
     glm::vec3 p3(-10.0f, 0.0f, 10.0f);
 
-    // segment 2
     glm::vec3 p4 = p3;
     glm::vec3 p5(-10.0f, 3.0f, 30.0f);
     glm::vec3 p6(10.0f, -3.0f, 30.0f);
     glm::vec3 p7 = p0;
 
-    // Track mesh blijft gewoon voor het tekenen
     std::vector<float> track1 = Bezier::GenerateTrackMesh(50, 1.0f, p0, p1, p2, p3);
     std::vector<float> track2 = Bezier::GenerateTrackMesh(50, 1.0f, p4, p5, p6, p7);
 
     std::vector<float> fullTrack = track1;
     fullTrack.insert(fullTrack.end(), track2.begin(), track2.end());
 
-    // Lookup tables voor beweging met ongeveer constante snelheid
     std::vector<Bezier::LookupEntry> lookupTable1 =
         Bezier::GenerateDistanceLookupTable(1000, p0, p1, p2, p3);
 
@@ -190,10 +185,8 @@ int main()
         );
         glm::mat4 view = camera.GetViewMatrix();
 
-        // -----------------------------
-        // SCHIP OVER DE TRACK VIA LOOKUP TABLE
-        // -----------------------------
-        float shipSpeed = 5.0f; // units per seconde
+
+        float shipSpeed = 5.0f; 
         float traveledDistance = std::fmod(currentFrame * shipSpeed, totalTrackLength);
 
         glm::vec3 shipPosition;
@@ -217,17 +210,14 @@ int main()
         glm::mat4 modelMat = glm::mat4(1.0f);
         modelMat = glm::translate(modelMat, shipPosition);
 
-        // vaste model-correctie die bij jou werkte
-        modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));  // model correctie zodat tie fighter juist georienteerd staat
 
         modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
         modelShader.setMat4("model", modelMat);
         ourModel.Draw(modelShader);
 
-        // -----------------------------
-        // TRACK
-        // -----------------------------
+
         trackShader.use();
         trackShader.setMat4("projection", projection);
         trackShader.setMat4("view", view);

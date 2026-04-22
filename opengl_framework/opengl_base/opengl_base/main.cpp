@@ -18,6 +18,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
+bool useShipCamera = false;
+bool tKeyPressed = false;
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -183,9 +185,7 @@ int main()
             0.1f,
             100.0f
         );
-        glm::mat4 view = camera.GetViewMatrix();
-
-
+        
         float shipSpeed = 5.0f; 
         float traveledDistance = std::fmod(currentFrame * shipSpeed, totalTrackLength);
 
@@ -204,6 +204,21 @@ int main()
             float t2 = GetTimeAtDistance(distanceOnSegment2, lookupTable2);
             shipPosition = Bezier::CalculatePoint(t2, p4, p5, p6, p7);
             shipDirection = Bezier::CalculateLookingDirection(t2, p4, p5, p6, p7);
+        }
+
+        glm::mat4 view;
+
+        if (useShipCamera)
+        {
+            glm::vec3 cameraOffset = -shipDirection * 4.0f + glm::vec3(0.0f, 2.0f, 0.0f);
+            glm::vec3 cameraPosition = shipPosition + cameraOffset;
+            glm::vec3 cameraTarget = shipPosition + shipDirection * 5.0f;
+
+            view = glm::lookAt(cameraPosition, cameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+        }
+        else
+        {
+            view = camera.GetViewMatrix();
         }
 
         modelShader.use();
@@ -253,6 +268,19 @@ void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS && !tKeyPressed)
+    {
+        useShipCamera = !useShipCamera;
+        tKeyPressed = true;
+        firstMouse = true;   
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
+        tKeyPressed = false;
+
+    if (useShipCamera)
+        return;  
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.ProcessKeyboard(FORWARD, deltaTime);

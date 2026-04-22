@@ -115,3 +115,63 @@ std::vector<float> Bezier::GenerateTrackMesh(int steps, float width, glm::vec3 p
     }
     return vertices;
 }
+
+
+std::vector<Bezier::LookupEntry> Bezier::GenerateDistanceLookupTable(
+    int samples,
+    glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3
+) {
+    std::vector<Bezier::LookupEntry> lookupTable;
+
+    if (samples < 1) {
+        samples = 1;
+    }
+
+    lookupTable.reserve(samples + 1);
+
+    glm::vec3 previousPoint = CalculatePoint(0.0f, p0, p1, p2, p3);
+    float totalDistance = 0.0f;
+
+    lookupTable.push_back({ 0.0f, 0.0f });
+
+    for (int i = 1; i <= samples; i++) {
+        float t = (float)i / (float)samples;
+        glm::vec3 currentPoint = CalculatePoint(t, p0, p1, p2, p3);
+
+        totalDistance += glm::length(currentPoint - previousPoint);
+        lookupTable.push_back({ t, totalDistance });
+
+        previousPoint = currentPoint;
+    }
+
+    return lookupTable;
+}
+
+float Bezier::GetTimeAtSpecificDistance(
+    float distance,
+    const std::vector<Bezier::LookupEntry>& lookupTable
+) {
+    if (lookupTable.empty()) {
+        return 0.0f;
+    }
+
+    if (distance <= lookupTable.front().distance) {
+        return lookupTable.front().t;
+    }
+
+    if (distance >= lookupTable.back().distance) {
+        return lookupTable.back().t;
+    }
+
+    for (size_t i = 0; i < lookupTable.size() - 1; i++) {
+        const Bezier::LookupEntry& a = lookupTable[i];
+        const Bezier::LookupEntry& b = lookupTable[i + 1];
+
+        if (distance >= a.distance && distance <= b.distance) {
+            float localFactor = (distance - a.distance) / (b.distance - a.distance);
+            return a.t + localFactor * (b.t - a.t);
+        }
+    }
+
+    return lookupTable.back().t;
+}

@@ -30,72 +30,33 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// --------------------------------------------------
-// Bezier helpers
-// --------------------------------------------------
-
-glm::vec3 EvaluateBezierPoint(
-    const glm::vec3& p0,
-    const glm::vec3& p1,
-    const glm::vec3& p2,
-    const glm::vec3& p3,
-    float t)
+// Zet afgelegde afstand om naar de juiste t-waarde via interpolatie in de lookup table
+float GetTimeAtDistance(
+    float distance,
+    const std::vector<Bezier::LookupEntry>& lookupTable)
 {
-    float u = 1.0f - t;
-    float tt = t * t;
-    float uu = u * u;
-    float uuu = uu * u;
-    float ttt = tt * t;
+    if (lookupTable.empty())
+        return 0.0f;
 
-    return uuu * p0
-        + 3.0f * uu * t * p1
-        + 3.0f * u * tt * p2
-        + ttt * p3;
-}
+    if (distance <= lookupTable.front().distance)
+        return lookupTable.front().t;
 
-std::vector<glm::vec3> BuildCenterLine(
-    int samplesPerSegment,
-    const glm::vec3& p0,
-    const glm::vec3& p1,
-    const glm::vec3& p2,
-    const glm::vec3& p3,
-    const glm::vec3& p4,
-    const glm::vec3& p5,
-    const glm::vec3& p6,
-    const glm::vec3& p7)
-{
-    std::vector<glm::vec3> points;
+    if (distance >= lookupTable.back().distance)
+        return lookupTable.back().t;
 
-    for (int i = 0; i < samplesPerSegment; ++i)
+    for (size_t i = 0; i < lookupTable.size() - 1; ++i)
     {
-        float t = static_cast<float>(i) / static_cast<float>(samplesPerSegment);
-        points.push_back(EvaluateBezierPoint(p0, p1, p2, p3, t));
+        const Bezier::LookupEntry& a = lookupTable[i];
+        const Bezier::LookupEntry& b = lookupTable[i + 1];
+
+        if (distance >= a.distance && distance <= b.distance)
+        {
+            float localFactor = (distance - a.distance) / (b.distance - a.distance);
+            return a.t + localFactor * (b.t - a.t);
+        }
     }
 
-    for (int i = 0; i < samplesPerSegment; ++i)
-    {
-        float t = static_cast<float>(i) / static_cast<float>(samplesPerSegment);
-        points.push_back(EvaluateBezierPoint(p4, p5, p6, p7, t));
-    }
-
-    return points;
-}
-
-glm::vec3 SampleCenterLine(const std::vector<glm::vec3>& path, float u)
-{
-    if (path.empty())
-        return glm::vec3(0.0f);
-
-    float wrapped = std::fmod(u, 1.0f);
-    if (wrapped < 0.0f)
-        wrapped += 1.0f;
-
-    float scaled = wrapped * static_cast<float>(path.size());
-    int i0 = static_cast<int>(std::floor(scaled)) % path.size();
-    int i1 = (i0 + 1) % path.size();
-    float localT = scaled - std::floor(scaled);
-
-    return glm::mix(path[i0], path[i1], localT);
+    return lookupTable.back().t;
 }
 
 int main()
@@ -148,18 +109,23 @@ int main()
     glm::vec3 p6(10.0f, -3.0f, 30.0f);
     glm::vec3 p7 = p0;
 
+    // Track mesh blijft gewoon voor het tekenen
     std::vector<float> track1 = Bezier::GenerateTrackMesh(50, 1.0f, p0, p1, p2, p3);
     std::vector<float> track2 = Bezier::GenerateTrackMesh(50, 1.0f, p4, p5, p6, p7);
 
     std::vector<float> fullTrack = track1;
     fullTrack.insert(fullTrack.end(), track2.begin(), track2.end());
 
-    // centerline waar het schip echt over beweegt
-    std::vector<glm::vec3> centerLine = BuildCenterLine(
-        200,
-        p0, p1, p2, p3,
-        p4, p5, p6, p7
-    );
+    // Lookup tables voor beweging met ongeveer constante snelheid
+    std::vector<Bezier::LookupEntry> lookupTable1 =
+        Bezier::GenerateDistanceLookupTable(1000, p0, p1, p2, p3);
+
+    std::vector<Bezier::LookupEntry> lookupTable2 =
+        Bezier::GenerateDistanceLookupTable(1000, p4, p5, p6, p7);
+
+    float segment1Length = lookupTable1.back().distance;
+    float segment2Length = lookupTable2.back().distance;
+    float totalTrackLength = segment1Length + segment2Length;
 
     unsigned int railVBO, railVAO;
     glGenVertexArrays(1, &railVAO);
@@ -224,21 +190,35 @@ int main()
         );
         glm::mat4 view = camera.GetViewMatrix();
 
-     
-        float shipSpeed = 0.08f;
-        float progressOverPath = std::fmod(currentFrame * shipSpeed, 1.0f);
-        glm::vec3 shipPosition = SampleCenterLine(centerLine, progressOverPath);
+        // -----------------------------
+        // SCHIP OVER DE TRACK VIA LOOKUP TABLE
+        // -----------------------------
+        float shipSpeed = 5.0f; // units per seconde
+        float traveledDistance = std::fmod(currentFrame * shipSpeed, totalTrackLength);
+
+        glm::vec3 shipPosition;
+
+        if (traveledDistance < segment1Length)
+        {
+            float t1 = GetTimeAtDistance(traveledDistance, lookupTable1);
+            shipPosition = Bezier::CalculatePoint(t1, p0, p1, p2, p3);
+        }
+        else
+        {
+            float distanceOnSegment2 = traveledDistance - segment1Length;
+            float t2 = GetTimeAtDistance(distanceOnSegment2, lookupTable2);
+            shipPosition = Bezier::CalculatePoint(t2, p4, p5, p6, p7);
+        }
 
         modelShader.use();
         modelShader.setMat4("projection", projection);
         modelShader.setMat4("view", view);
 
-
         glm::mat4 modelMat = glm::mat4(1.0f);
-        modelMat = glm::translate(modelMat, shipPosition); // ipv eerdere vaste positie; modelMat = glm::translate(modelMat, glm::vec3(0.0f, -1.75f, 0.0f));
+        modelMat = glm::translate(modelMat, shipPosition);
 
-        modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); 
-
+        // vaste model-correctie die bij jou werkte
+        modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
         modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
@@ -246,7 +226,7 @@ int main()
         ourModel.Draw(modelShader);
 
         // -----------------------------
-        // draw track
+        // TRACK
         // -----------------------------
         trackShader.use();
         trackShader.setMat4("projection", projection);

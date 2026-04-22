@@ -175,3 +175,16 @@ float Bezier::GetTimeAtSpecificDistance(
 
     return lookupTable.back().t;
 }
+
+
+glm::vec3 Bezier::CalculateLookingDirection(float t, glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) {
+    float u = 1.0f - t;
+
+    glm::vec3 tangent = 3.0f * u * u * (p1 - p0) + 6.0f * u * t * (p2 - p1) + 3.0f * t * t * (p3 - p2); // tangent = raaklijn
+
+    if (glm::length(tangent) < 0.0001f) {  // voor delen met 0 te vermijden
+        return glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+
+    return glm::normalize(tangent);
+}

@@ -189,29 +189,40 @@ int main()
         float shipSpeed = 5.0f; 
         float traveledDistance = std::fmod(currentFrame * shipSpeed, totalTrackLength);
 
+        glm::vec3 shipDirection;
         glm::vec3 shipPosition;
 
         if (traveledDistance < segment1Length)
         {
             float t1 = GetTimeAtDistance(traveledDistance, lookupTable1);
             shipPosition = Bezier::CalculatePoint(t1, p0, p1, p2, p3);
+            shipDirection = Bezier::CalculateLookingDirection(t1, p0, p1, p2, p3);
         }
         else
         {
             float distanceOnSegment2 = traveledDistance - segment1Length;
             float t2 = GetTimeAtDistance(distanceOnSegment2, lookupTable2);
             shipPosition = Bezier::CalculatePoint(t2, p4, p5, p6, p7);
+            shipDirection = Bezier::CalculateLookingDirection(t2, p4, p5, p6, p7);
         }
 
         modelShader.use();
         modelShader.setMat4("projection", projection);
         modelShader.setMat4("view", view);
 
+        glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+
+        glm::mat4 orientation = glm::inverse(glm::lookAt(
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            shipDirection,
+            worldUp
+        ));
+
         glm::mat4 modelMat = glm::mat4(1.0f);
         modelMat = glm::translate(modelMat, shipPosition);
-
-        modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));  // model correctie zodat tie fighter juist georienteerd staat
-
+        modelMat *= orientation;
+        modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden 
+        modelMat = glm::rotate(modelMat, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)); //zodat schip neit omgekeerd staat 
         modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
         modelShader.setMat4("model", modelMat);

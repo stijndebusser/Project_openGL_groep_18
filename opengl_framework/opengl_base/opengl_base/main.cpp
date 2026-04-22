@@ -214,15 +214,14 @@ int main()
 
         glm::mat4 orientation = glm::inverse(glm::lookAt(
             glm::vec3(0.0f, 0.0f, 0.0f),
-            shipDirection,
+            -shipDirection,  
             worldUp
-        ));
+        ));  // - voor ship direction is quick fix direction
 
         glm::mat4 modelMat = glm::mat4(1.0f);
         modelMat = glm::translate(modelMat, shipPosition);
         modelMat *= orientation;
         modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden 
-        modelMat = glm::rotate(modelMat, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)); //zodat schip neit omgekeerd staat 
         modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
         modelShader.setMat4("model", modelMat);

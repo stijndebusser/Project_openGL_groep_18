@@ -427,17 +427,16 @@ int main()
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
 	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
+	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 
-	// segment 1
 	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
 	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
 	glm::vec3 p2(-10.0f, -3.0f, -10.0f); // control 2
 	glm::vec3 p3(-10.0f, 0.0f, 10.0f); // end point
 
-	// segment 2
 	glm::vec3 p4 = p3;                       // start segment 2, start at end point of segment 1
-	glm::vec3 p5(-10.0f, 3.0f, 30.0f);     // smoothness check: p5 - p4 == p3 - p2 (Both are 0, 3, 20)
-	glm::vec3 p6(10.0f, -3.0f, 30.0f);     // smoothness check: p7 - p6 == p1 - p0 (Both are 0, 3, -20)
+	glm::vec3 p5(-10.0f, 3.0f, 30.0f);    
+	glm::vec3 p6(10.0f, -3.0f, 30.0f);     
 	glm::vec3 p7 = p0;                       // complete loop with end at the start of segment 1
 
 	std::vector<float> track1 = Bezier::GenerateTrackMesh(50, 1.0f, p0, p1, p2, p3);
@@ -446,6 +445,11 @@ int main()
 	// all segments in one ful track
 	std::vector<float> fullTrack = track1;
 	fullTrack.insert(fullTrack.end(), track2.begin(), track2.end());
+
+	std::vector<glm::vec3> rockPath1 = Bezier::GenerateCurveForwardDifferencing(50, p0, p1, p2, p3);
+	std::vector<glm::vec3> rockPath2 = Bezier::GenerateCurveForwardDifferencing(50, p4, p5, p6, p7);
+	std::vector<glm::vec3> fullRockPath = rockPath1;
+	fullRockPath.insert(fullRockPath.end(), rockPath2.begin(), rockPath2.end());
 
 	unsigned int railVBO, railVAO;
 	glGenVertexArrays(1, &railVAO);
@@ -492,7 +496,7 @@ int main()
 	trackShader.use();
 	trackShader.setInt("trackTexture", 0);
 	modelShader.use();
-
+	
 	while (!glfwWindowShouldClose(window))
 	{
 		float currentFrame = static_cast<float>(glfwGetTime());
@@ -516,6 +520,60 @@ int main()
 		modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 		modelShader.setMat4("model", modelMat);
 		ourModel.Draw(modelShader);
+
+
+		for (size_t i = 0; i < fullRockPath.size() - 1; i++)
+		{
+			glm::vec3 currentPos = fullRockPath[i];
+			glm::vec3 nextPos = fullRockPath[i + 1];
+
+			glm::vec3 localX = glm::normalize(nextPos - currentPos);
+			glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+			glm::vec3 localZ = glm::normalize(glm::cross(localX, worldUp));
+			glm::vec3 localY = glm::normalize(glm::cross(localZ, localX));
+
+			glm::mat4 baseRotationMat(1.0f);
+			baseRotationMat[0] = glm::vec4(localX, 0.0f);
+			baseRotationMat[1] = glm::vec4(localY, 0.0f);
+			baseRotationMat[2] = glm::vec4(localZ, 0.0f);
+
+			// Seed the random generator using the index so rocks stay stationary between frames
+			srand(static_cast<unsigned int>(i * 12345));
+
+			// INCREASE THIS NUMBER to spawn more rocks per segment
+			int rocksPerSegment = 12;
+			for (int r = 0; r < rocksPerSegment; r++)
+			{
+				// Widen the spread so they don't clip into each other as much
+				// (Change 1.5f, 1.5f, 4.0f to make the cloud wider or tighter)
+				float offsetX = ((rand() % 200) / 100.0f - 1.0f) * 0.5f;
+				float offsetY = ((rand() % 200) / 100.0f - 1.0f) * 0.5f;
+				float offsetZ = ((rand() % 200) / 100.0f - 1.0f) * 1.0f;
+
+				glm::vec3 jitteredPos = currentPos + (localX * offsetX) + (localY * offsetY) + (localZ * offsetZ);
+
+				// Random spin (roll) around all 3 axes for complete randomization!
+				float randomRotX = glm::radians((float)(rand() % 360));
+				float randomRotY = glm::radians((float)(rand() % 360));
+				float randomRotZ = glm::radians((float)(rand() % 360));
+
+				glm::mat4 rollMat = glm::mat4(1.0f);
+				rollMat = glm::rotate(rollMat, randomRotX, glm::vec3(1.0f, 0.0f, 0.0f));
+				rollMat = glm::rotate(rollMat, randomRotY, glm::vec3(0.0f, 1.0f, 0.0f));
+				rollMat = glm::rotate(rollMat, randomRotZ, glm::vec3(0.0f, 0.0f, 1.0f));
+
+				// Random scale to make rocks vary in size
+				float randScale = 0.15f + ((rand() % 100) / 100.0f) * 0.20f;
+
+				glm::mat4 rockModelMat = glm::mat4(1.0f);
+				rockModelMat = glm::translate(rockModelMat, jitteredPos);
+				rockModelMat = rockModelMat * baseRotationMat * rollMat;
+				rockModelMat = glm::scale(rockModelMat, glm::vec3(randScale, randScale, randScale));
+
+				modelShader.setMat4("model", rockModelMat);
+				rocksModel.Draw(modelShader);
+			}
+		}
 
 		trackShader.use();
 		trackShader.setMat4("projection", projection);

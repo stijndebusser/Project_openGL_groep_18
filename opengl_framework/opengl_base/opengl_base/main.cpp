@@ -179,11 +179,14 @@ int main()
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        float nearPlane = useShipCamera ? 0.6f : 0.1f;
+        float farPlane = 200.0f;
+
         glm::mat4 projection = glm::perspective(
             glm::radians(camera.Zoom),
             static_cast<float>(SCR_WIDTH) / static_cast<float>(SCR_HEIGHT),
-            0.1f,
-            100.0f
+            nearPlane,
+            farPlane
         );
         
         float shipSpeed = 5.0f; 
@@ -220,6 +223,7 @@ int main()
         {
             view = camera.GetViewMatrix();
         }
+       
 
         modelShader.use();
         modelShader.setMat4("projection", projection);

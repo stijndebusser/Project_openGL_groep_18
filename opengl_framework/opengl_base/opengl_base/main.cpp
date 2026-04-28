@@ -273,7 +273,7 @@ int main()
 			// Seed the random generator using the index so rocks stay stationary between frames
 			srand(static_cast<unsigned int>(i * 12345));
 
-			// INCREASE THIS NUMBER to spawn more rocks per segment
+			// INCREASE THIS NUMBER to spawn more rocks per segment qsdfqdsf
 			int rocksPerSegment = 12;
 			for (int r = 0; r < rocksPerSegment; r++)
 			{

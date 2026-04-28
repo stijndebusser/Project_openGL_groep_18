@@ -96,6 +96,7 @@ int main()
 
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
 	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
+	Shader sunSHader("../../../shaders/model.vs", "../../../shaders/sun.fs")
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 

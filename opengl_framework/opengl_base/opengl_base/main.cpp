@@ -96,9 +96,10 @@ int main()
 
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
 	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
-	Shader sunSHader("../../../shaders/model.vs", "../../../shaders/sun.fs")
+	Shader sunShader("../../../shaders/model.vs", "../../../shaders/sun.fs");
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
+	Model sunModel("../../../resources/objects/sun/scene.gltf");
 
 	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
 	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
@@ -122,9 +123,6 @@ int main()
 
 	fullRockPath.insert(fullRockPath.end(), rockPath2.begin(), rockPath2.end());
 
-	unsigned int railVBO, railVAO;
-	glGenVertexArrays(1, &railVAO);
-	glGenBuffers(1, &railVBO);
 
 	std::vector<Bezier::LookupEntry> lookupTable1 =
 		Bezier::GenerateDistanceLookupTable(1000, p0, p1, p2, p3);
@@ -135,46 +133,6 @@ int main()
 	float segment1Length = lookupTable1.back().distance;
 	float segment2Length = lookupTable2.back().distance;
 	float totalTrackLength = segment1Length + segment2Length;
-
-	glBindVertexArray(railVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, railVBO);
-	glBufferData(GL_ARRAY_BUFFER, fullTrack.size() * sizeof(float), fullTrack.data(), GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	unsigned int trackTexture;
-	glGenTextures(1, &trackTexture);
-	glBindTexture(GL_TEXTURE_2D, trackTexture);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	int width, height, nrChannels;
-	unsigned char* data = stbi_load("../../../textures/meteor-shower-transparent.png", &width, &height, &nrChannels, 0);
-
-	if (data)
-	{
-		GLenum format = GL_RGB;
-		if (nrChannels == 4) format = GL_RGBA;
-		else if (nrChannels == 1) format = GL_RED;
-
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);
-
-	trackShader.use();
-	trackShader.setInt("trackTexture", 0);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -267,11 +225,25 @@ int main()
 		glm::mat4 modelMat = glm::mat4(1.0f);
 		modelMat = glm::translate(modelMat, shipPosition);
 		modelMat *= orientation;
-		modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden�
+		modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden
 		modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
 		modelShader.setMat4("model", modelMat);
 		ourModel.Draw(modelShader);
+
+		// sun
+
+		sunShader.use();
+		sunShader.setMat4("projection", projection);
+		sunShader.setMat4("view", view);
+
+		glm::mat4 sunMat = glm::mat4(1.0f);
+		sunMat = glm::translate(sunMat, glm::vec3(1.0f, 0.0f, 0.0f));
+		sunMat = glm::scale(sunMat, glm::vec3(0.5f));
+
+		// 3. Teken de zon
+		sunShader.setMat4("model", sunMat);
+		sunModel.Draw(sunShader);
 
 		// rocks
 
@@ -328,25 +300,10 @@ int main()
 			}
 		}
 
-		trackShader.use();
-		trackShader.setMat4("projection", projection);
-		trackShader.setMat4("view", view);
-
-		glm::mat4 trackModelMat = glm::mat4(1.0f);
-		trackShader.setMat4("model", trackModelMat);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, trackTexture);
-
-		glBindVertexArray(railVAO);
-		glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(fullTrack.size() / 5));
-
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
-	trackShader.use();
-	trackShader.setInt("trackTexture", 0);
 	modelShader.use();
 
 	glfwTerminate();

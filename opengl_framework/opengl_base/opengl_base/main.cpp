@@ -186,8 +186,8 @@ int main()
 		glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		float nearPlane = useShipCamera ? 0.6f : 0.1f;
-		float farPlane = 200.0f;
+		float nearPlane = useShipCamera ? 0.05f : 0.1f;
+		float farPlane = 300.0f;
 
 		glm::mat4 projection = glm::perspective(
 			glm::radians(camera.Zoom),
@@ -215,16 +215,35 @@ int main()
 			shipPosition = Bezier::CalculatePoint(t2, p4, p5, p6, p7);
 			shipDirection = Bezier::CalculateLookingDirection(t2, p4, p5, p6, p7);
 		}
+		glm::vec3 shipHeightOffset(0.0f, 1.5f, 0.0f);
+		shipPosition += shipHeightOffset;
 
 		glm::mat4 view;
 
 		if (useShipCamera)
 		{
-			glm::vec3 cameraOffset = -shipDirection * 4.0f + glm::vec3(0.0f, 2.0f, 0.0f);
-			glm::vec3 cameraPosition = shipPosition + cameraOffset;
-			glm::vec3 cameraTarget = shipPosition + shipDirection * 5.0f;
+			glm::vec3 forward = glm::normalize(shipDirection);
+			glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-			view = glm::lookAt(cameraPosition, cameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
+			glm::vec3 up = glm::normalize(glm::cross(right, forward));
+
+			// voor in shcip -> scherm nog niet echt transparant?
+			//glm::vec3 cameraPosition =   
+			//	shipPosition
+			//	- forward * 0.6f     
+			//	+ up * 0.70f         
+			//	- right * 0.55f;
+
+			glm::vec3 cameraPosition =
+				shipPosition
+				- forward * 0.45f    
+				+ up * 0.70f         
+				- right * 0.55f;
+
+			glm::vec3 cameraTarget = cameraPosition + forward * 10.0f; 
+
+			view = glm::lookAt(cameraPosition, cameraTarget, up);
 		}
 		else
 		{
@@ -378,6 +397,7 @@ void processInput(GLFWwindow* window)
 		firstMouse = true;
 	}
 
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 		tKeyPressed = false;
 

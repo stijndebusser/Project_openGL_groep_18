@@ -94,6 +94,7 @@ int main()
 
     stbi_set_flip_vertically_on_load(true);
 
+<<<<<<< HEAD
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
 	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
@@ -108,23 +109,41 @@ int main()
 	glm::vec3 p5(-10.0f, 3.0f, 30.0f);    
 	glm::vec3 p6(10.0f, -3.0f, 30.0f);     
 	glm::vec3 p7 = p0;                       // complete loop with end at the start of segment 1
+=======
+    Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
+    Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
+    Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
+
+    glm::vec3 p0(10.0f, 0.0f, 10.0f);
+    glm::vec3 p1(10.0f, 3.0f, -10.0f);
+    glm::vec3 p2(-10.0f, -3.0f, -10.0f);
+    glm::vec3 p3(-10.0f, 0.0f, 10.0f);
+
+    glm::vec3 p4 = p3;
+    glm::vec3 p5(-10.0f, 3.0f, 30.0f);
+    glm::vec3 p6(10.0f, -3.0f, 30.0f);
+    glm::vec3 p7 = p0;
+>>>>>>> 74e3801e24741ee00b7230dfb34e7acde1174bc7
 
     std::vector<float> track1 = Bezier::GenerateTrackMesh(50, 1.0f, p0, p1, p2, p3);
     std::vector<float> track2 = Bezier::GenerateTrackMesh(50, 1.0f, p4, p5, p6, p7);
 
     std::vector<float> fullTrack = track1;
     fullTrack.insert(fullTrack.end(), track2.begin(), track2.end());
+<<<<<<< HEAD
 
 	std::vector<glm::vec3> rockPath1 = Bezier::GenerateCurveForwardDifferencing(50, p0, p1, p2, p3);
 	std::vector<glm::vec3> rockPath2 = Bezier::GenerateCurveForwardDifferencing(50, p4, p5, p6, p7);
 	std::vector<glm::vec3> fullRockPath = rockPath1;
 
 	fullRockPath.insert(fullRockPath.end(), rockPath2.begin(), rockPath2.end());
+=======
+>>>>>>> 74e3801e24741ee00b7230dfb34e7acde1174bc7
 
-	unsigned int railVBO, railVAO;
-	glGenVertexArrays(1, &railVAO);
-	glGenBuffers(1, &railVBO);
+    std::vector<Bezier::LookupEntry> lookupTable1 =
+        Bezier::GenerateDistanceLookupTable(1000, p0, p1, p2, p3);
 
+<<<<<<< HEAD
     std::vector<Bezier::LookupEntry> lookupTable1 =
         Bezier::GenerateDistanceLookupTable(1000, p0, p1, p2, p3);
 
@@ -134,6 +153,18 @@ int main()
     float segment1Length = lookupTable1.back().distance;
     float segment2Length = lookupTable2.back().distance;
     float totalTrackLength = segment1Length + segment2Length;
+=======
+    std::vector<Bezier::LookupEntry> lookupTable2 =
+        Bezier::GenerateDistanceLookupTable(1000, p4, p5, p6, p7);
+
+    float segment1Length = lookupTable1.back().distance;
+    float segment2Length = lookupTable2.back().distance;
+    float totalTrackLength = segment1Length + segment2Length;
+
+    unsigned int railVBO, railVAO;
+    glGenVertexArrays(1, &railVAO);
+    glGenBuffers(1, &railVBO);
+>>>>>>> 74e3801e24741ee00b7230dfb34e7acde1174bc7
 
     glBindVertexArray(railVAO);
     glBindBuffer(GL_ARRAY_BUFFER, railVBO);
@@ -231,6 +262,7 @@ int main()
             view = camera.GetViewMatrix();
         }
        
+<<<<<<< HEAD
 
 
         modelShader.use();
@@ -324,10 +356,49 @@ int main()
         glBindVertexArray(railVAO);
         glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(fullTrack.size() / 5));
 
+=======
+
+        modelShader.use();
+        modelShader.setMat4("projection", projection);
+        modelShader.setMat4("view", view);
+
+        glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+
+        glm::mat4 orientation = glm::inverse(glm::lookAt(
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            -shipDirection,  
+            worldUp
+        ));  // - voor ship direction is quick fix direction
+
+        glm::mat4 modelMat = glm::mat4(1.0f);
+        modelMat = glm::translate(modelMat, shipPosition);
+        modelMat *= orientation;
+        modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden 
+        modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
+
+        modelShader.setMat4("model", modelMat);
+        ourModel.Draw(modelShader);
+
+
+        trackShader.use();
+        trackShader.setMat4("projection", projection);
+        trackShader.setMat4("view", view);
+
+        glm::mat4 trackModelMat = glm::mat4(1.0f);
+        trackShader.setMat4("model", trackModelMat);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, trackTexture);
+
+        glBindVertexArray(railVAO);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(fullTrack.size() / 5));
+
+>>>>>>> 74e3801e24741ee00b7230dfb34e7acde1174bc7
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
+<<<<<<< HEAD
 	trackShader.use();
 	trackShader.setInt("trackTexture", 0);
 	modelShader.use();
@@ -337,6 +408,13 @@ int main()
 
 }
 
+=======
+    glfwTerminate();
+    return 0;
+}
+
+
+>>>>>>> 74e3801e24741ee00b7230dfb34e7acde1174bc7
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {

@@ -130,7 +130,8 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
     {
         aiString str;
         mat->GetTexture(type, i, &str);
-
+        
+        
         bool skip = false;
         for (unsigned int j = 0; j < textures_loaded.size(); j++)
         {
@@ -160,6 +161,7 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
 unsigned int TextureFromFile(const char* path, const std::string& directory, bool gamma)
 {
     std::filesystem::path fullPath = std::filesystem::path(directory) / path;
+
 
     unsigned int textureID;
     glGenTextures(1, &textureID);

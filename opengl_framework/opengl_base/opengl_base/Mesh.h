@@ -59,6 +59,7 @@ public:
 
             shader.setInt(name + number, static_cast<int>(i));
             glBindTexture(GL_TEXTURE_2D, textures[i].id);
+
         }
 
         glBindVertexArray(VAO);

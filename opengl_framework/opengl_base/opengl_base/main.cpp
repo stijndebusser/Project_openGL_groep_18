@@ -94,12 +94,16 @@ int main()
 
 	stbi_set_flip_vertically_on_load(true);
 
+	glm::vec3 sunPos = glm::vec3(-20.0f, 10.0f, -30.0f);
+
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
 	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
-	Shader sunShader("../../../shaders/model.vs", "../../../shaders/sun.fs");
+	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
+
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 	Model sunModel("../../../resources/objects/sun/scene.gltf");
+	Model saturnModel("../../../resources/objects/saturn/scene.gltf");
 
 	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
 	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
@@ -214,6 +218,18 @@ int main()
 		modelShader.setMat4("projection", projection);
 		modelShader.setMat4("view", view);
 
+		//modelShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+		modelShader.setVec3("viewPos", camera.Position);
+
+		modelShader.setVec3("light.position", sunPos);
+		modelShader.setVec3("light.ambient", 0.5f, 0.5f, 0.5f);
+		modelShader.setVec3("light.diffuse", 5.0f, 5.0f, 5.0f);
+		modelShader.setVec3("light.specular", 3.0f, 3.0f, 3.0f);
+
+		modelShader.setFloat("light.constant", 1.0f);
+		modelShader.setFloat("light.linear", 0.022f);
+		modelShader.setFloat("light.quadratic", 0.0019f);
+
 		glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
 
 		glm::mat4 orientation = glm::inverse(glm::lookAt(
@@ -221,6 +237,7 @@ int main()
 			-shipDirection,
 			worldUp
 		));  // - voor ship direction is quick fix direction
+
 
 		glm::mat4 modelMat = glm::mat4(1.0f);
 		modelMat = glm::translate(modelMat, shipPosition);
@@ -231,21 +248,10 @@ int main()
 		modelShader.setMat4("model", modelMat);
 		ourModel.Draw(modelShader);
 
-		// sun
-
-		sunShader.use();
-		sunShader.setMat4("projection", projection);
-		sunShader.setMat4("view", view);
-
-		glm::mat4 sunMat = glm::mat4(1.0f);
-		sunMat = glm::translate(sunMat, glm::vec3(1.0f, 0.0f, 0.0f));
-		sunMat = glm::scale(sunMat, glm::vec3(0.5f));
-
-		// 3. Teken de zon
-		sunShader.setMat4("model", sunMat);
-		sunModel.Draw(sunShader);
 
 		// rocks
+
+		modelShader.use();
 
 		for (size_t i = 0; i < fullRockPath.size() - 1; i++)
 		{
@@ -262,22 +268,17 @@ int main()
 			baseRotationMat[1] = glm::vec4(localY, 0.0f);
 			baseRotationMat[2] = glm::vec4(localZ, 0.0f);
 
-			// Seed the random generator using the index so rocks stay stationary between frames
 			srand(static_cast<unsigned int>(i * 12345));
 
-			// INCREASE THIS NUMBER to spawn more rocks per segment
 			int rocksPerSegment = 12;
 			for (int r = 0; r < rocksPerSegment; r++)
 			{
-				// Widen the spread so they don't clip into each other as much
-				// (Change 1.5f, 1.5f, 4.0f to make the cloud wider or tighter)
 				float offsetX = ((rand() % 200) / 100.0f - 1.0f) * 0.5f;
 				float offsetY = ((rand() % 200) / 100.0f - 1.0f) * 0.5f;
 				float offsetZ = ((rand() % 200) / 100.0f - 1.0f) * 1.0f;
 
 				glm::vec3 jitteredPos = currentPos + (localX * offsetX) + (localY * offsetY) + (localZ * offsetZ);
 
-				// Random spin (roll) around all 3 axes for complete randomization!
 				float randomRotX = glm::radians((float)(rand() % 360));
 				float randomRotY = glm::radians((float)(rand() % 360));
 				float randomRotZ = glm::radians((float)(rand() % 360));
@@ -287,7 +288,6 @@ int main()
 				rollMat = glm::rotate(rollMat, randomRotY, glm::vec3(0.0f, 1.0f, 0.0f));
 				rollMat = glm::rotate(rollMat, randomRotZ, glm::vec3(0.0f, 0.0f, 1.0f));
 
-				// Random scale to make rocks vary in size
 				float randScale = 0.15f + ((rand() % 100) / 100.0f) * 0.20f;
 
 				glm::mat4 rockModelMat = glm::mat4(1.0f);
@@ -299,6 +299,37 @@ int main()
 				rocksModel.Draw(modelShader);
 			}
 		}
+
+
+
+		lightShader.use();
+		lightShader.setMat4("projection", projection);
+		lightShader.setMat4("view", view);
+
+		float rotationSpeed = 0.05f;
+		float rotationAngle = currentFrame * rotationSpeed;
+
+
+		// sun
+
+		glm::mat4 sunMat = glm::mat4(1.0f);
+		sunMat = glm::translate(sunMat, sunPos);
+		sunMat = glm::rotate(sunMat, rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+		sunMat = glm::scale(sunMat, glm::vec3(1.0f));
+		lightShader.setMat4("model", sunMat);
+		lightShader.setVec3("lightColor", glm::vec3(1.0f, 0.5f, 0.3f));
+		lightShader.setFloat("intensity", 2.0f);
+		sunModel.Draw(lightShader);
+
+		// saturn
+		modelShader.use();
+		glm::mat4 saturnMat = glm::mat4(1.0f);
+		saturnMat = glm::translate(saturnMat, glm::vec3(-7.0f, 6.0f, 17.0f));
+		saturnMat = glm::rotate(saturnMat, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		saturnMat = glm::scale(saturnMat, glm::vec3(7.0f));
+		modelShader.setMat4("model", saturnMat);
+		saturnModel.Draw(modelShader);
+		
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

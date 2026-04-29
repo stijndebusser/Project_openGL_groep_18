@@ -101,7 +101,7 @@ int main()
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
 
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
-	Model starDestroyerModel("../../../resources/objects/star_destroyer/source/Star_destroyer.obj");
+	Model starDestroyerModel("../../../resources/objects/star_destroyer/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 	Model sunModel("../../../resources/objects/sun/scene.gltf");
 	Model saturnModel("../../../resources/objects/saturn/scene.gltf");
@@ -151,7 +151,8 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		float nearPlane = useShipCamera ? 0.05f : 0.1f;
-		float farPlane = 300.0f;
+	/*	float farPlane = 300.0f;*/
+		float farPlane = 5000.0f;
 
 		glm::mat4 projection = glm::perspective(
 			glm::radians(camera.Zoom),
@@ -321,6 +322,25 @@ int main()
 		lightShader.setVec3("lightColor", glm::vec3(1.0f, 0.5f, 0.3f));
 		lightShader.setFloat("intensity", 2.0f);
 		sunModel.Draw(lightShader);
+
+		// star destoyer
+		modelShader.use();
+		modelShader.setMat4("projection", projection);
+		modelShader.setMat4("view", view);
+
+
+		glm::mat4 starDestroyerMat = glm::mat4(1.0f);
+
+		starDestroyerMat = glm::translate(starDestroyerMat, glm::vec3(0.0f, 10.0f, 55.0f));
+
+		starDestroyerMat = glm::rotate(starDestroyerMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+		starDestroyerMat = glm::rotate(starDestroyerMat, glm::radians(-25.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+		starDestroyerMat = glm::scale(starDestroyerMat, glm::vec3(5.0f));
+
+		modelShader.setMat4("model", starDestroyerMat);
+		starDestroyerModel.Draw(modelShader);
 
 		// saturn
 		modelShader.use();

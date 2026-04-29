@@ -101,6 +101,7 @@ int main()
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
 
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
+	Model starDestroyerModel("../../../resources/objects/star_destroyer/source/Star_destroyer.obj");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 	Model sunModel("../../../resources/objects/sun/scene.gltf");
 	Model saturnModel("../../../resources/objects/saturn/scene.gltf");

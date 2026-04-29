@@ -94,10 +94,16 @@ int main()
 
 	stbi_set_flip_vertically_on_load(true);
 
+	glm::vec3 sunPos = glm::vec3(-20.0f, 10.0f, -30.0f);
+
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
 	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
+	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
+
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
+	Model sunModel("../../../resources/objects/sun/scene.gltf");
+	Model saturnModel("../../../resources/objects/saturn/scene.gltf");
 
 	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
 	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
@@ -121,9 +127,6 @@ int main()
 
 	fullRockPath.insert(fullRockPath.end(), rockPath2.begin(), rockPath2.end());
 
-	unsigned int railVBO, railVAO;
-	glGenVertexArrays(1, &railVAO);
-	glGenBuffers(1, &railVBO);
 
 	std::vector<Bezier::LookupEntry> lookupTable1 =
 		Bezier::GenerateDistanceLookupTable(1000, p0, p1, p2, p3);
@@ -134,46 +137,6 @@ int main()
 	float segment1Length = lookupTable1.back().distance;
 	float segment2Length = lookupTable2.back().distance;
 	float totalTrackLength = segment1Length + segment2Length;
-
-	glBindVertexArray(railVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, railVBO);
-	glBufferData(GL_ARRAY_BUFFER, fullTrack.size() * sizeof(float), fullTrack.data(), GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	unsigned int trackTexture;
-	glGenTextures(1, &trackTexture);
-	glBindTexture(GL_TEXTURE_2D, trackTexture);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	int width, height, nrChannels;
-	unsigned char* data = stbi_load("../../../textures/meteor-shower-transparent.png", &width, &height, &nrChannels, 0);
-
-	if (data)
-	{
-		GLenum format = GL_RGB;
-		if (nrChannels == 4) format = GL_RGBA;
-		else if (nrChannels == 1) format = GL_RED;
-
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);
-
-	trackShader.use();
-	trackShader.setInt("trackTexture", 0);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -255,6 +218,18 @@ int main()
 		modelShader.setMat4("projection", projection);
 		modelShader.setMat4("view", view);
 
+		//modelShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+		modelShader.setVec3("viewPos", camera.Position);
+
+		modelShader.setVec3("light.position", sunPos);
+		modelShader.setVec3("light.ambient", 0.5f, 0.5f, 0.5f);
+		modelShader.setVec3("light.diffuse", 5.0f, 5.0f, 5.0f);
+		modelShader.setVec3("light.specular", 3.0f, 3.0f, 3.0f);
+
+		modelShader.setFloat("light.constant", 1.0f);
+		modelShader.setFloat("light.linear", 0.022f);
+		modelShader.setFloat("light.quadratic", 0.0019f);
+
 		glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
 
 		glm::mat4 orientation = glm::inverse(glm::lookAt(
@@ -263,16 +238,20 @@ int main()
 			worldUp
 		));  // - voor ship direction is quick fix direction
 
+
 		glm::mat4 modelMat = glm::mat4(1.0f);
 		modelMat = glm::translate(modelMat, shipPosition);
 		modelMat *= orientation;
-		modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden�
+		modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden
 		modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
 		modelShader.setMat4("model", modelMat);
 		ourModel.Draw(modelShader);
 
+
 		// rocks
+
+		modelShader.use();
 
 		for (size_t i = 0; i < fullRockPath.size() - 1; i++)
 		{
@@ -289,22 +268,17 @@ int main()
 			baseRotationMat[1] = glm::vec4(localY, 0.0f);
 			baseRotationMat[2] = glm::vec4(localZ, 0.0f);
 
-			// Seed the random generator using the index so rocks stay stationary between frames
 			srand(static_cast<unsigned int>(i * 12345));
 
-			// INCREASE THIS NUMBER to spawn more rocks per segment
 			int rocksPerSegment = 12;
 			for (int r = 0; r < rocksPerSegment; r++)
 			{
-				// Widen the spread so they don't clip into each other as much
-				// (Change 1.5f, 1.5f, 4.0f to make the cloud wider or tighter)
 				float offsetX = ((rand() % 200) / 100.0f - 1.0f) * 0.5f;
 				float offsetY = ((rand() % 200) / 100.0f - 1.0f) * 0.5f;
 				float offsetZ = ((rand() % 200) / 100.0f - 1.0f) * 1.0f;
 
 				glm::vec3 jitteredPos = currentPos + (localX * offsetX) + (localY * offsetY) + (localZ * offsetZ);
 
-				// Random spin (roll) around all 3 axes for complete randomization!
 				float randomRotX = glm::radians((float)(rand() % 360));
 				float randomRotY = glm::radians((float)(rand() % 360));
 				float randomRotZ = glm::radians((float)(rand() % 360));
@@ -314,7 +288,6 @@ int main()
 				rollMat = glm::rotate(rollMat, randomRotY, glm::vec3(0.0f, 1.0f, 0.0f));
 				rollMat = glm::rotate(rollMat, randomRotZ, glm::vec3(0.0f, 0.0f, 1.0f));
 
-				// Random scale to make rocks vary in size
 				float randScale = 0.15f + ((rand() % 100) / 100.0f) * 0.20f;
 
 				glm::mat4 rockModelMat = glm::mat4(1.0f);
@@ -327,25 +300,41 @@ int main()
 			}
 		}
 
-		trackShader.use();
-		trackShader.setMat4("projection", projection);
-		trackShader.setMat4("view", view);
 
-		glm::mat4 trackModelMat = glm::mat4(1.0f);
-		trackShader.setMat4("model", trackModelMat);
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, trackTexture);
+		lightShader.use();
+		lightShader.setMat4("projection", projection);
+		lightShader.setMat4("view", view);
 
-		glBindVertexArray(railVAO);
-		glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(fullTrack.size() / 5));
+		float rotationSpeed = 0.05f;
+		float rotationAngle = currentFrame * rotationSpeed;
+
+
+		// sun
+
+		glm::mat4 sunMat = glm::mat4(1.0f);
+		sunMat = glm::translate(sunMat, sunPos);
+		sunMat = glm::rotate(sunMat, rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+		sunMat = glm::scale(sunMat, glm::vec3(1.0f));
+		lightShader.setMat4("model", sunMat);
+		lightShader.setVec3("lightColor", glm::vec3(1.0f, 0.5f, 0.3f));
+		lightShader.setFloat("intensity", 2.0f);
+		sunModel.Draw(lightShader);
+
+		// saturn
+		modelShader.use();
+		glm::mat4 saturnMat = glm::mat4(1.0f);
+		saturnMat = glm::translate(saturnMat, glm::vec3(-7.0f, 6.0f, 17.0f));
+		saturnMat = glm::rotate(saturnMat, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		saturnMat = glm::scale(saturnMat, glm::vec3(7.0f));
+		modelShader.setMat4("model", saturnMat);
+		saturnModel.Draw(modelShader);
+		
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
-	trackShader.use();
-	trackShader.setInt("trackTexture", 0);
 	modelShader.use();
 
 	glfwTerminate();

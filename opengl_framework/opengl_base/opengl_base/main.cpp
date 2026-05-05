@@ -13,6 +13,7 @@
 #include "Shader.h"
 #include "Model.h"
 #include "bezier.h"
+#include "FrameBuffer.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
@@ -20,6 +21,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
 bool useShipCamera = false;
 bool tKeyPressed = false;
+int currentEffect = 0;
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -58,6 +60,33 @@ float GetTimeAtDistance(
 	}
 
 	return lookupTable.back().t;
+}
+
+unsigned int loadTexture(char const* path) {
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+
+	int width, height, nrComponents;
+	unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+	if (data) {
+		GLenum format = (nrComponents == 4) ? GL_RGBA : GL_RGB;
+
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		stbi_image_free(data);
+	}
+	else {
+		std::cout << "Texture failed to load at path: " << path << std::endl;
+		stbi_image_free(data);
+	}
+	return textureID;
 }
 
 int main()
@@ -99,12 +128,19 @@ int main()
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
 	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
+	Shader chromaKeyShader("../../../shaders/chromakeyshader.vs", "../../../shaders/chromakeyshader.fs");
+	Shader convolutionShader("../../../shaders/screen.vs", "../../../shaders/convolution.fs");
 
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 	Model starDestroyerModel("../../../resources/objects/star_destroyer/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 	Model sunModel("../../../resources/objects/sun/scene.gltf");
 	Model saturnModel("../../../resources/objects/saturn/scene.gltf");
+
+	unsigned int greenScreenTexture = loadTexture("../../../resources/images/greenscreenmask.png");
+
+	Framebuffer overlayQuad(SCR_WIDTH, SCR_HEIGHT);
+	Framebuffer mainSceneFBO(SCR_WIDTH, SCR_HEIGHT);
 
 	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
 	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
@@ -146,6 +182,9 @@ int main()
 		lastFrame = currentFrame;
 
 		processInput(window);
+
+		mainSceneFBO.Bind();
+		glEnable(GL_DEPTH_TEST);
 
 		glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -350,7 +389,33 @@ int main()
 		saturnMat = glm::scale(saturnMat, glm::vec3(7.0f));
 		modelShader.setMat4("model", saturnMat);
 		saturnModel.Draw(modelShader);
+
+
+		mainSceneFBO.Unbind();
+
+		glDisable(GL_DEPTH_TEST);
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		convolutionShader.use();
+		convolutionShader.setInt("screenTexture", 0);
+
+		// choose the effect here, 1 = normal, 2 = Gaussian blur, 3 = Laplacian edges highlighting
+		convolutionShader.setInt("effectType", currentEffect);
+
+		mainSceneFBO.Draw(convolutionShader.ID, mainSceneFBO.textureColorbuffer);
+
+
 		
+		if (useShipCamera) {
+			glDisable(GL_DEPTH_TEST); // ignore depth if helmet is on (2D)
+
+			chromaKeyShader.use();
+			chromaKeyShader.setInt("chromaKeyTexture", 0);
+			overlayQuad.Draw(chromaKeyShader.ID, greenScreenTexture);
+
+			glEnable(GL_DEPTH_TEST);
+		}
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -410,6 +475,13 @@ void processInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 		if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 			tKeyPressed = false;
+
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+		currentEffect = 0; // Normal
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+		currentEffect = 1; // Gaussian blur
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+		currentEffect = 2; // Laplacian edge highlighting
 
 	if (useShipCamera)
 		return;

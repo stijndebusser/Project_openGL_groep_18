@@ -101,6 +101,7 @@ int main()
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
 
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
+	Model cargoShipModel("../../../resources/objects/cargo_ship/scene.gltf");
 	Model starDestroyerModel("../../../resources/objects/star_destroyer/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 	Model sunModel("../../../resources/objects/sun/scene.gltf");
@@ -249,6 +250,15 @@ int main()
 
 		modelShader.setMat4("model", modelMat);
 		ourModel.Draw(modelShader);
+
+		// cargoship
+		glm::mat4 cargoShipMat = glm::mat4(1.0f);
+		cargoShipMat = glm::translate(cargoShipMat, shipPosition + glm::normalize(shipDirection) * 4.0f);
+		cargoShipMat *= orientation;
+		cargoShipMat = glm::rotate(cargoShipMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		cargoShipMat = glm::scale(cargoShipMat, glm::vec3(0.2f, 0.2f, 0.2f));
+		modelShader.setMat4("model", cargoShipMat);
+		cargoShipModel.Draw(modelShader);
 
 
 		// rocks

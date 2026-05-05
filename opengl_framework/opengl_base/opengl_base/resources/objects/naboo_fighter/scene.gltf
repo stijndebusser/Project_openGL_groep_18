@@ -1,0 +1,334 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 106,
+      "max": [
+        0.6149160265922546,
+        1.227599024772644,
+        0.7368599772453308
+      ],
+      "min": [
+        -0.6149970293045044,
+        0.0812700018286705,
+        0.3208799958229065
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 1272,
+      "componentType": 5126,
+      "count": 106,
+      "max": [
+        0.5494297742843628,
+        0.38619592785835266,
+        0.9503697752952576
+      ],
+      "min": [
+        -0.5432970523834229,
+        -0.04210102558135986,
+        0.8310595750808716
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 106,
+      "max": [
+        0.44999998807907104,
+        0.49611398577690125
+      ],
+      "min": [
+        0.4000000059604645,
+        0.4346800148487091
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 324,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 2544,
+      "componentType": 5126,
+      "count": 7733,
+      "max": [
+        3.402772903442383,
+        3.5960729122161865,
+        0.8819559812545776
+      ],
+      "min": [
+        -3.352294921875,
+        -7.880969047546387,
+        -1.0069530010223389
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 95340,
+      "componentType": 5126,
+      "count": 7733,
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 848,
+      "componentType": 5126,
+      "count": 7733,
+      "max": [
+        0.875,
+        1.0
+      ],
+      "min": [
+        0.125,
+        -0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 1296,
+      "componentType": 5125,
+      "count": 37926,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 188136,
+      "componentType": 5126,
+      "count": 2205,
+      "max": [
+        3.273766040802002,
+        2.4478020668029785,
+        0.41412198543548584
+      ],
+      "min": [
+        -3.2232871055603027,
+        -5.407144069671631,
+        -0.21430599689483643
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 214596,
+      "componentType": 5126,
+      "count": 2205,
+      "max": [
+        1.0,
+        0.9997118711471558,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -0.9997118711471558,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 62712,
+      "componentType": 5126,
+      "count": 2205,
+      "max": [
+        1.0,
+        1.0
+      ],
+      "min": [
+        0.0,
+        -0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 153000,
+      "componentType": 5125,
+      "count": 12000,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "cold.fusion (https://sketchfab.com/cold.fusion)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/k7-nubian-light-freighter-11-878184586fc44dd4a54df1175fbe14e9",
+      "title": "K7 Nubian Light Freighter 1.1"
+    },
+    "generator": "Sketchfab-12.63.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 201000,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 80352,
+      "byteOffset": 201000,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 241056,
+      "byteOffset": 281352,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 522408,
+      "uri": "scene.bin"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "aiStandardSurface3SG",
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0.0
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "ship_engineaiStandardSurface1SG",
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0.0
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "ship_engineaiStandardSurface2SG",
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0.0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Object_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_1",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_2",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 8,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        -1.0,
+        -3.1450057482662597e-32,
+        2.832769343193999e-16,
+        0.0,
+        2.832769343193999e-16,
+        6.123232939436859e-17,
+        1.0,
+        0.0,
+        -4.8795769672831353e-32,
+        1.0,
+        -6.123232939436859e-17,
+        0.0,
+        0.05047106742858887,
+        -3.4775032940731867e-16,
+        4.284878253936768,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2,
+        3,
+        4
+      ],
+      "name": "starship1_1.obj.cleaner.materialmerger.gles"
+    },
+    {
+      "mesh": 0,
+      "name": "Object_2"
+    },
+    {
+      "mesh": 1,
+      "name": "Object_3"
+    },
+    {
+      "mesh": 2,
+      "name": "Object_4"
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ]
+}

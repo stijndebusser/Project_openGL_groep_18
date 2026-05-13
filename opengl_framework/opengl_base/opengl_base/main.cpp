@@ -23,6 +23,9 @@ bool useShipCamera = false;
 bool tKeyPressed = false;
 int currentEffect = 0;
 
+bool bloomEnabled = false;
+bool bKeyPressed = false;
+
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
@@ -130,6 +133,7 @@ int main()
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
 	Shader chromaKeyShader("../../../shaders/chromakeyshader.vs", "../../../shaders/chromakeyshader.fs");
 	Shader convolutionShader("../../../shaders/screen.vs", "../../../shaders/convolution.fs");
+	Shader bloomShader("../../../shaders/screen.vs", "../../../shaders/bloom.fs");
 
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 	Model starDestroyerModel("../../../resources/objects/star_destroyer/scene.gltf");
@@ -141,6 +145,9 @@ int main()
 
 	Framebuffer overlayQuad(SCR_WIDTH, SCR_HEIGHT);
 	Framebuffer mainSceneFBO(SCR_WIDTH, SCR_HEIGHT);
+
+	Framebuffer brightLightsFBO(SCR_WIDTH, SCR_HEIGHT);
+	Framebuffer blurredLightsFBO(SCR_WIDTH, SCR_HEIGHT);
 
 	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
 	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
@@ -390,21 +397,54 @@ int main()
 		modelShader.setMat4("model", saturnMat);
 		saturnModel.Draw(modelShader);
 
-
 		mainSceneFBO.Unbind();
+
+		if (bloomEnabled) {
+			// isolate the lightsource
+			brightLightsFBO.Bind();
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // render sun only on a black surface
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			lightShader.use();
+			sunModel.Draw(lightShader);
+			brightLightsFBO.Unbind();
+
+			blurredLightsFBO.Bind();
+			glDisable(GL_DEPTH_TEST);
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			convolutionShader.use();
+			convolutionShader.setInt("screenTexture", 0);
+			convolutionShader.setInt("effectType", 1); // blur the sun a bit for the blooming effect
+
+			blurredLightsFBO.Draw(convolutionShader.ID, brightLightsFBO.textureColorbuffer);
+			blurredLightsFBO.Unbind();
+			glEnable(GL_DEPTH_TEST);
+		}
 
 		glDisable(GL_DEPTH_TEST);
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		convolutionShader.use();
-		convolutionShader.setInt("screenTexture", 0);
+		if (bloomEnabled) { // here we actually do the adding processing in the bloom.fs shader
+			bloomShader.use();
+			bloomShader.setInt("scene", 0);
+			bloomShader.setInt("bloomBlur", 1);
 
-		// choose the effect here, 1 = normal, 2 = Gaussian blur, 3 = Laplacian edges highlighting
-		convolutionShader.setInt("effectType", currentEffect);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, blurredLightsFBO.textureColorbuffer);
+			glActiveTexture(GL_TEXTURE0);
 
-		mainSceneFBO.Draw(convolutionShader.ID, mainSceneFBO.textureColorbuffer);
+			mainSceneFBO.Draw(bloomShader.ID, mainSceneFBO.textureColorbuffer);
+		}
+		else {
+			convolutionShader.use();
+			convolutionShader.setInt("screenTexture", 0);
+			convolutionShader.setInt("effectType", currentEffect);
 
+			mainSceneFBO.Draw(convolutionShader.ID, mainSceneFBO.textureColorbuffer);
+		}
 
 		
 		if (useShipCamera) {
@@ -475,6 +515,16 @@ void processInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 		if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 			tKeyPressed = false;
+
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !bKeyPressed)
+	{
+		bloomEnabled = !bloomEnabled;
+		bKeyPressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE)
+	{
+		bKeyPressed = false;
+	}
 
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
 		currentEffect = 0; // Normal

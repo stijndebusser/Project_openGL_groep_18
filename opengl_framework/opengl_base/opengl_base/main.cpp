@@ -115,6 +115,13 @@ int main()
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 	Model sunModel("../../../resources/objects/sun/scene.gltf");
 	Model saturnModel("../../../resources/objects/saturn/scene.gltf");
+	Model laserModel("../../../resources/objects/laser/scene.gltf");
+
+	bool laserActive = false;
+	float laserDistance = 0.0f;
+	glm::vec3 laserPosition(0.0f);
+	glm::vec3 laserDirection(0.0f);
+	glm::mat4 laserOrientation = glm::mat4(1.0f);
 
 	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
 	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
@@ -281,7 +288,13 @@ int main()
 				nabooFighterMat);
 
 			if (pickedID == 1)
-				std::cout << "TIE fighter shot laser" << std::endl;
+			{
+				laserActive = true;
+				laserDistance = 0.0f;
+				laserPosition = glm::vec3(modelMat * glm::vec4(2.65f, 1.1f, 3.35f, 1.0f));
+				laserDirection = glm::normalize(glm::vec3(modelMat * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
+				laserOrientation = orientation;
+			}
 
 			glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -391,6 +404,24 @@ int main()
 		saturnMat = glm::scale(saturnMat, glm::vec3(7.0f));
 		modelShader.setMat4("model", saturnMat);
 		saturnModel.Draw(modelShader);
+
+		if (laserActive)
+		{
+			float laserSpeed = 45.0f;
+			laserDistance += laserSpeed * deltaTime;
+			laserPosition += laserDirection * laserSpeed * deltaTime;
+
+			glm::mat4 laserMat = glm::mat4(1.0f);
+			laserMat = glm::translate(laserMat, laserPosition);
+			laserMat *= laserOrientation;
+			laserMat = glm::scale(laserMat, glm::vec3(0.04f, 0.04f, 0.15f));
+
+			modelShader.setMat4("model", laserMat);
+			laserModel.Draw(modelShader);
+
+			if (laserDistance > 80.0f)
+				laserActive = false;
+		}
 		
 
 		glfwSwapBuffers(window);

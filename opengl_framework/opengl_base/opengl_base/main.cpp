@@ -13,6 +13,7 @@
 #include "Shader.h"
 #include "Model.h"
 #include "bezier.h"
+#include "FrameBuffer.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
@@ -28,6 +29,10 @@ int PickNabooFighter(
 bool useShipCamera = false;
 bool tKeyPressed = false;
 bool leftMouseButtonPressed = false;
+int currentEffect = 0;
+
+bool bloomEnabled = false;
+bool bKeyPressed = false;
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -66,6 +71,33 @@ float GetTimeAtDistance(
 	}
 
 	return lookupTable.back().t;
+}
+
+unsigned int loadTexture(char const* path) {
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+
+	int width, height, nrComponents;
+	unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+	if (data) {
+		GLenum format = (nrComponents == 4) ? GL_RGBA : GL_RGB;
+
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		stbi_image_free(data);
+	}
+	else {
+		std::cout << "Texture failed to load at path: " << path << std::endl;
+		stbi_image_free(data);
+	}
+	return textureID;
 }
 
 int main()
@@ -108,6 +140,9 @@ int main()
 	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
 	Shader pickingShader("../../../shaders/model.vs", "../../../shaders/picking.fs");
+	Shader chromaKeyShader("../../../shaders/chromakeyshader.vs", "../../../shaders/chromakeyshader.fs");
+	Shader convolutionShader("../../../shaders/screen.vs", "../../../shaders/convolution.fs");
+	Shader bloomShader("../../../shaders/screen.vs", "../../../shaders/bloom.fs");
 
 	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
 	Model nabooFighterModel("../../../resources/objects/naboo_fighter/scene.gltf");
@@ -122,6 +157,14 @@ int main()
 	glm::vec3 laserPosition(0.0f);
 	glm::vec3 laserDirection(0.0f);
 	glm::mat4 laserOrientation = glm::mat4(1.0f);
+
+	unsigned int greenScreenTexture = loadTexture("../../../resources/images/greenscreenmask.png");
+
+	Framebuffer overlayQuad(SCR_WIDTH, SCR_HEIGHT);
+	Framebuffer mainSceneFBO(SCR_WIDTH, SCR_HEIGHT);
+
+	Framebuffer brightLightsFBO(SCR_WIDTH, SCR_HEIGHT);
+	Framebuffer blurredLightsFBO(SCR_WIDTH, SCR_HEIGHT);
 
 	glm::vec3 p0(10.0f, 0.0f, 10.0f); // start point
 	glm::vec3 p1(10.0f, 3.0f, -10.0f); // control 1
@@ -164,11 +207,14 @@ int main()
 
 		processInput(window);
 
+		mainSceneFBO.Bind();
+		glEnable(GL_DEPTH_TEST);
+
 		glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		float nearPlane = useShipCamera ? 0.05f : 0.1f;
-	/*	float farPlane = 300.0f;*/
+		/*	float farPlane = 300.0f;*/
 		float farPlane = 5000.0f;
 
 		glm::mat4 projection = glm::perspective(
@@ -303,7 +349,7 @@ int main()
 
 		modelShader.setMat4("model", nabooFighterMat);
 		nabooFighterModel.Draw(modelShader);
-		
+
 
 		// rocks
 
@@ -422,7 +468,65 @@ int main()
 			if (laserDistance > 80.0f)
 				laserActive = false;
 		}
-		
+		mainSceneFBO.Unbind();
+
+		if (bloomEnabled) {
+			// isolate the lightsource
+			brightLightsFBO.Bind();
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // render sun only on a black surface
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			lightShader.use();
+			sunModel.Draw(lightShader);
+			brightLightsFBO.Unbind();
+
+			blurredLightsFBO.Bind();
+			glDisable(GL_DEPTH_TEST);
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			convolutionShader.use();
+			convolutionShader.setInt("screenTexture", 0);
+			convolutionShader.setInt("effectType", 1); // blur the sun a bit for the blooming effect
+
+			blurredLightsFBO.Draw(convolutionShader.ID, brightLightsFBO.textureColorbuffer);
+			blurredLightsFBO.Unbind();
+			glEnable(GL_DEPTH_TEST);
+		}
+
+		glDisable(GL_DEPTH_TEST);
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		if (bloomEnabled) { // here we actually do the adding processing in the bloom.fs shader
+			bloomShader.use();
+			bloomShader.setInt("scene", 0);
+			bloomShader.setInt("bloomBlur", 1);
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, blurredLightsFBO.textureColorbuffer);
+			glActiveTexture(GL_TEXTURE0);
+
+			mainSceneFBO.Draw(bloomShader.ID, mainSceneFBO.textureColorbuffer);
+		}
+		else {
+			convolutionShader.use();
+			convolutionShader.setInt("screenTexture", 0);
+			convolutionShader.setInt("effectType", currentEffect);
+
+			mainSceneFBO.Draw(convolutionShader.ID, mainSceneFBO.textureColorbuffer);
+		}
+
+
+		if (useShipCamera) {
+			glDisable(GL_DEPTH_TEST); // ignore depth if helmet is on (2D)
+
+			chromaKeyShader.use();
+			chromaKeyShader.setInt("chromaKeyTexture", 0);
+			overlayQuad.Draw(chromaKeyShader.ID, greenScreenTexture);
+
+			glEnable(GL_DEPTH_TEST);
+		}
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -533,6 +637,23 @@ void processInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 		if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 			tKeyPressed = false;
+
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !bKeyPressed)
+	{
+		bloomEnabled = !bloomEnabled;
+		bKeyPressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE)
+	{
+		bKeyPressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+		currentEffect = 0; // Normal
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+		currentEffect = 1; // Gaussian blur
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+		currentEffect = 2; // Laplacian edge highlighting
 
 	if (useShipCamera)
 		return;

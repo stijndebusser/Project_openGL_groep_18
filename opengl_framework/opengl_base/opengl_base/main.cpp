@@ -159,18 +159,11 @@ int main()
 	glm::vec3 p6(10.0f, -3.0f, 30.0f);
 	glm::vec3 p7 = p0;
 
-	std::vector<float> track1 = Bezier::GenerateTrackMesh(50, 1.0f, p0, p1, p2, p3);
-	std::vector<float> track2 = Bezier::GenerateTrackMesh(50, 1.0f, p4, p5, p6, p7);
-
-	std::vector<float> fullTrack = track1;
-	fullTrack.insert(fullTrack.end(), track2.begin(), track2.end());
-
 	std::vector<glm::vec3> rockPath1 = Bezier::GenerateCurveForwardDifferencing(50, p0, p1, p2, p3);
 	std::vector<glm::vec3> rockPath2 = Bezier::GenerateCurveForwardDifferencing(50, p4, p5, p6, p7);
 	std::vector<glm::vec3> fullRockPath = rockPath1;
 
 	fullRockPath.insert(fullRockPath.end(), rockPath2.begin(), rockPath2.end());
-
 
 	std::vector<Bezier::LookupEntry> lookupTable1 =
 		Bezier::GenerateDistanceLookupTable(1000, p0, p1, p2, p3);
@@ -356,7 +349,6 @@ int main()
 
 		float rotationSpeed = 0.05f;
 		float rotationAngle = currentFrame * rotationSpeed;
-
 
 		// sun
 

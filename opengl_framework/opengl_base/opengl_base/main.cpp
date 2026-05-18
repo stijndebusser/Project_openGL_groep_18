@@ -19,8 +19,16 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
+int PickNabooFighter(
+	GLFWwindow* window,
+	Shader& pickingShader,
+	Model& nabooFighterModel,
+	const glm::mat4& projection,
+	const glm::mat4& view,
+	const glm::mat4& nabooFighterMat);
 bool useShipCamera = false;
 bool tKeyPressed = false;
+bool leftMouseButtonPressed = false;
 int currentEffect = 0;
 
 bool bloomEnabled = false;
@@ -36,34 +44,6 @@ bool firstMouse = true;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
-
-float GetTimeAtDistance(
-	float distance,
-	const std::vector<Bezier::LookupEntry>& lookupTable)
-{
-	if (lookupTable.empty())
-		return 0.0f;
-
-	if (distance <= lookupTable.front().distance)
-		return lookupTable.front().t;
-
-	if (distance >= lookupTable.back().distance)
-		return lookupTable.back().t;
-
-	for (size_t i = 0; i < lookupTable.size() - 1; ++i)
-	{
-		const Bezier::LookupEntry& a = lookupTable[i];
-		const Bezier::LookupEntry& b = lookupTable[i + 1];
-
-		if (distance >= a.distance && distance <= b.distance)
-		{
-			float localFactor = (distance - a.distance) / (b.distance - a.distance);
-			return a.t + localFactor * (b.t - a.t);
-		}
-	}
-
-	return lookupTable.back().t;
-}
 
 unsigned int loadTexture(char const* path) {
 	unsigned int textureID;
@@ -129,17 +109,25 @@ int main()
 	glm::vec3 sunPos = glm::vec3(-20.0f, 10.0f, -30.0f);
 
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
-	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
+	Shader pickingShader("../../../shaders/model.vs", "../../../shaders/picking.fs");
 	Shader chromaKeyShader("../../../shaders/chromakeyshader.vs", "../../../shaders/chromakeyshader.fs");
 	Shader convolutionShader("../../../shaders/screen.vs", "../../../shaders/convolution.fs");
 	Shader bloomShader("../../../shaders/screen.vs", "../../../shaders/bloom.fs");
 
-	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
+	Model tieFighterModel("../../../resources/objects/tie_fighter/scene.gltf");
+	Model nabooFighterModel("../../../resources/objects/naboo_fighter/scene.gltf");
 	Model starDestroyerModel("../../../resources/objects/star_destroyer/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
 	Model sunModel("../../../resources/objects/sun/scene.gltf");
 	Model saturnModel("../../../resources/objects/saturn/scene.gltf");
+	Model laserModel("../../../resources/objects/laser/scene.gltf");
+
+	bool laserActive = false;
+	float laserDistance = 0.0f;
+	glm::vec3 laserPosition(0.0f);
+	glm::vec3 laserDirection(0.0f);
+	glm::mat4 laserOrientation = glm::mat4(1.0f);
 
 	unsigned int greenScreenTexture = loadTexture("../../../resources/images/greenscreenmask.png");
 
@@ -190,7 +178,6 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		float nearPlane = useShipCamera ? 0.05f : 0.1f;
-	/*	float farPlane = 300.0f;*/
 		float farPlane = 5000.0f;
 
 		glm::mat4 projection = glm::perspective(
@@ -208,14 +195,14 @@ int main()
 
 		if (traveledDistance < segment1Length)
 		{
-			float t1 = GetTimeAtDistance(traveledDistance, lookupTable1);
+			float t1 = Bezier::GetTimeAtSpecificDistance(traveledDistance, lookupTable1);
 			shipPosition = Bezier::CalculatePoint(t1, p0, p1, p2, p3);
 			shipDirection = Bezier::CalculateLookingDirection(t1, p0, p1, p2, p3);
 		}
 		else
 		{
 			float distanceOnSegment2 = traveledDistance - segment1Length;
-			float t2 = GetTimeAtDistance(distanceOnSegment2, lookupTable2);
+			float t2 = Bezier::GetTimeAtSpecificDistance(distanceOnSegment2, lookupTable2);
 			shipPosition = Bezier::CalculatePoint(t2, p4, p5, p6, p7);
 			shipDirection = Bezier::CalculateLookingDirection(t2, p4, p5, p6, p7);
 		}
@@ -231,13 +218,6 @@ int main()
 
 			glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
 			glm::vec3 up = glm::normalize(glm::cross(right, forward));
-
-			// voor in shcip -> scherm nog niet echt transparant?
-			//glm::vec3 cameraPosition =   
-			//	shipPosition
-			//	- forward * 0.6f     
-			//	+ up * 0.70f         
-			//	- right * 0.55f;
 
 			glm::vec3 cameraPosition =
 				shipPosition
@@ -259,7 +239,6 @@ int main()
 		modelShader.setMat4("projection", projection);
 		modelShader.setMat4("view", view);
 
-		//modelShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
 		modelShader.setVec3("viewPos", camera.Position);
 
 		modelShader.setVec3("light.position", sunPos);
@@ -280,18 +259,56 @@ int main()
 		));  // - voor ship direction is quick fix direction
 
 
-		glm::mat4 modelMat = glm::mat4(1.0f);
-		modelMat = glm::translate(modelMat, shipPosition);
-		modelMat *= orientation;
-		modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden
-		modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
+		glm::mat4 tieFighterModelMat = glm::mat4(1.0f);
+		tieFighterModelMat = glm::translate(tieFighterModelMat, shipPosition);
+		tieFighterModelMat *= orientation;
+		tieFighterModelMat = glm::rotate(tieFighterModelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden
+		tieFighterModelMat = glm::scale(tieFighterModelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
-		modelShader.setMat4("model", modelMat);
-		ourModel.Draw(modelShader);
+		// nabooFighter
+		glm::mat4 nabooFighterMat = glm::mat4(1.0f);
+		nabooFighterMat = glm::translate(nabooFighterMat, shipPosition + glm::normalize(shipDirection) * 5.0f);
+		nabooFighterMat *= orientation;
+
+		nabooFighterMat = glm::rotate(nabooFighterMat, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		nabooFighterMat = glm::rotate(nabooFighterMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		nabooFighterMat = glm::scale(nabooFighterMat, glm::vec3(0.3f, 0.3f, 0.3f));
+
+		bool leftMouseButtonDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+		if (leftMouseButtonDown && !leftMouseButtonPressed)
+		{
+			int pickedID = PickNabooFighter(
+				window,
+				pickingShader,
+				nabooFighterModel,
+				projection,
+				view,
+				nabooFighterMat);
+
+			if (pickedID == 1)
+			{
+				laserActive = true;
+				laserDistance = 0.0f;
+				laserPosition = glm::vec3(tieFighterModelMat * glm::vec4(2.65f, 1.1f, 3.35f, 1.0f));
+				laserDirection = glm::normalize(glm::vec3(tieFighterModelMat * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
+				laserOrientation = orientation;
+			}
+
+			glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		}
+		leftMouseButtonPressed = leftMouseButtonDown;
+
+		modelShader.use();
+
+		modelShader.setMat4("model", tieFighterModelMat);
+		tieFighterModel.Draw(modelShader);
+
+		modelShader.setMat4("model", nabooFighterMat);
+		nabooFighterModel.Draw(modelShader);
 
 
 		// rocks
-
 		modelShader.use();
 
 		for (size_t i = 0; i < fullRockPath.size() - 1; i++)
@@ -351,7 +368,6 @@ int main()
 		float rotationAngle = currentFrame * rotationSpeed;
 
 		// sun
-
 		glm::mat4 sunMat = glm::mat4(1.0f);
 		sunMat = glm::translate(sunMat, sunPos);
 		sunMat = glm::rotate(sunMat, rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -389,6 +405,23 @@ int main()
 		modelShader.setMat4("model", saturnMat);
 		saturnModel.Draw(modelShader);
 
+		if (laserActive)
+		{
+			float laserSpeed = 45.0f;
+			laserDistance += laserSpeed * deltaTime;
+			laserPosition += laserDirection * laserSpeed * deltaTime;
+
+			glm::mat4 laserMat = glm::mat4(1.0f);
+			laserMat = glm::translate(laserMat, laserPosition);
+			laserMat *= laserOrientation;
+			laserMat = glm::scale(laserMat, glm::vec3(0.04f, 0.04f, 0.15f));
+
+			modelShader.setMat4("model", laserMat);
+			laserModel.Draw(modelShader);
+
+			if (laserDistance > 80.0f)
+				laserActive = false;
+		}
 		mainSceneFBO.Unbind();
 
 		if (bloomEnabled) {
@@ -438,7 +471,7 @@ int main()
 			mainSceneFBO.Draw(convolutionShader.ID, mainSceneFBO.textureColorbuffer);
 		}
 
-		
+
 		if (useShipCamera) {
 			glDisable(GL_DEPTH_TEST); // ignore depth if helmet is on (2D)
 
@@ -492,6 +525,57 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
+int PickNabooFighter(
+	GLFWwindow* window,
+	Shader& pickingShader,
+	Model& nabooFighterModel,
+	const glm::mat4& projection,
+	const glm::mat4& view,
+	const glm::mat4& nabooFighterMat)
+{
+	int windowWidth = 0;
+	int windowHeight = 0;
+	int framebufferWidth = 0;
+	int framebufferHeight = 0;
+	glfwGetWindowSize(window, &windowWidth, &windowHeight);
+	glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+
+	double mouseX = windowWidth / 2.0;
+	double mouseY = windowHeight / 2.0;
+	glfwGetCursorPos(window, &mouseX, &mouseY);
+
+	if (mouseX < 0.0 || mouseX >= windowWidth || mouseY < 0.0 || mouseY >= windowHeight)
+	{
+		mouseX = windowWidth / 2.0;
+		mouseY = windowHeight / 2.0;
+	}
+
+	int pixelX = static_cast<int>(mouseX * framebufferWidth / windowWidth);
+	int pixelY = framebufferHeight - static_cast<int>(mouseY * framebufferHeight / windowHeight) - 1;
+
+	glDisable(GL_BLEND);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	pickingShader.use();
+	pickingShader.setMat4("projection", projection);
+	pickingShader.setMat4("view", view);
+	pickingShader.setMat4("model", nabooFighterMat);
+	pickingShader.setVec4("PickingColor", 1.0f / 255.0f, 0.0f, 0.0f, 1.0f);
+	nabooFighterModel.Draw(pickingShader);
+
+	glFlush();
+	glFinish();
+
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	unsigned char data[4] = { 0, 0, 0, 0 };
+	glReadPixels(pixelX, pixelY, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+	glEnable(GL_BLEND);
+
+	return data[0] + data[1] * 256 + data[2] * 256 * 256;
+}
+
 void processInput(GLFWwindow* window)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -505,7 +589,6 @@ void processInput(GLFWwindow* window)
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
-		if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 			tKeyPressed = false;
 
 	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !bKeyPressed)

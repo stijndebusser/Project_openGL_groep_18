@@ -34,15 +34,6 @@ std::vector<glm::vec3> Bezier::GenerateCurveForwardDifferencing(int steps, glm::
     return vertices;
 }
 
-glm::vec3 Bezier::CalculateSurfacePoint(float u, float v, const std::vector<glm::vec3>& controlPoints) {
-    glm::vec3 p0 = CalculatePoint(u, controlPoints[0], controlPoints[1], controlPoints[2], controlPoints[3]);
-    glm::vec3 p1 = CalculatePoint(u, controlPoints[4], controlPoints[5], controlPoints[6], controlPoints[7]);
-    glm::vec3 p2 = CalculatePoint(u, controlPoints[8], controlPoints[9], controlPoints[10], controlPoints[11]);
-    glm::vec3 p3 = CalculatePoint(u, controlPoints[12], controlPoints[13], controlPoints[14], controlPoints[15]);
-
-    return CalculatePoint(v, p0, p1, p2, p3);
-}
-
 std::vector<float> Bezier::GenerateSurfaceMesh(int uSteps, int vSteps, const std::vector<glm::vec3>& controlPoints) {
     std::vector<float> vertices;
 
@@ -69,11 +60,6 @@ std::vector<float> Bezier::GenerateSurfaceMesh(int uSteps, int vSteps, const std
         }
     }
     return vertices;
-}
-
-glm::vec3 CalculateDerivative(float t, glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) {
-    float u = 1.0f - t;
-    return 3.0f * u * u * (p1 - p0) + 6.0f * u * t * (p2 - p1) + 3.0f * t * t * (p3 - p2);
 }
 
 std::vector<float> Bezier::GenerateTrackMesh(int steps, float width, glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) {

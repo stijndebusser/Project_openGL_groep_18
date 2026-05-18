@@ -9,8 +9,6 @@ public:
         float distance;
     };
 
-    static glm::vec3 CalculatePoint(float t, glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3);
-
     static glm::vec3 CalculateLookingDirection(
         float t,
         glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3

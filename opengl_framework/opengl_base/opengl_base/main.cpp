@@ -45,34 +45,6 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-float GetTimeAtDistance(
-	float distance,
-	const std::vector<Bezier::LookupEntry>& lookupTable)
-{
-	if (lookupTable.empty())
-		return 0.0f;
-
-	if (distance <= lookupTable.front().distance)
-		return lookupTable.front().t;
-
-	if (distance >= lookupTable.back().distance)
-		return lookupTable.back().t;
-
-	for (size_t i = 0; i < lookupTable.size() - 1; ++i)
-	{
-		const Bezier::LookupEntry& a = lookupTable[i];
-		const Bezier::LookupEntry& b = lookupTable[i + 1];
-
-		if (distance >= a.distance && distance <= b.distance)
-		{
-			float localFactor = (distance - a.distance) / (b.distance - a.distance);
-			return a.t + localFactor * (b.t - a.t);
-		}
-	}
-
-	return lookupTable.back().t;
-}
-
 unsigned int loadTexture(char const* path) {
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
@@ -137,14 +109,13 @@ int main()
 	glm::vec3 sunPos = glm::vec3(-20.0f, 10.0f, -30.0f);
 
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
-	Shader trackShader("../../../shaders/camera.vs", "../../../shaders/camera.fs");
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
 	Shader pickingShader("../../../shaders/model.vs", "../../../shaders/picking.fs");
 	Shader chromaKeyShader("../../../shaders/chromakeyshader.vs", "../../../shaders/chromakeyshader.fs");
 	Shader convolutionShader("../../../shaders/screen.vs", "../../../shaders/convolution.fs");
 	Shader bloomShader("../../../shaders/screen.vs", "../../../shaders/bloom.fs");
 
-	Model ourModel("../../../resources/objects/tie_fighter/scene.gltf");
+	Model tieFighterModel("../../../resources/objects/tie_fighter/scene.gltf");
 	Model nabooFighterModel("../../../resources/objects/naboo_fighter/scene.gltf");
 	Model starDestroyerModel("../../../resources/objects/star_destroyer/scene.gltf");
 	Model rocksModel("../../../resources/objects/rocks/3Drocks.obj");
@@ -175,12 +146,6 @@ int main()
 	glm::vec3 p5(-10.0f, 3.0f, 30.0f);
 	glm::vec3 p6(10.0f, -3.0f, 30.0f);
 	glm::vec3 p7 = p0;
-
-	std::vector<float> track1 = Bezier::GenerateTrackMesh(50, 1.0f, p0, p1, p2, p3);
-	std::vector<float> track2 = Bezier::GenerateTrackMesh(50, 1.0f, p4, p5, p6, p7);
-
-	std::vector<float> fullTrack = track1;
-	fullTrack.insert(fullTrack.end(), track2.begin(), track2.end());
 
 	std::vector<glm::vec3> rockPath1 = Bezier::GenerateCurveForwardDifferencing(50, p0, p1, p2, p3);
 	std::vector<glm::vec3> rockPath2 = Bezier::GenerateCurveForwardDifferencing(50, p4, p5, p6, p7);
@@ -231,14 +196,14 @@ int main()
 
 		if (traveledDistance < segment1Length)
 		{
-			float t1 = GetTimeAtDistance(traveledDistance, lookupTable1);
+			float t1 = Bezier::GetTimeAtSpecificDistance(traveledDistance, lookupTable1);
 			shipPosition = Bezier::CalculatePoint(t1, p0, p1, p2, p3);
 			shipDirection = Bezier::CalculateLookingDirection(t1, p0, p1, p2, p3);
 		}
 		else
 		{
 			float distanceOnSegment2 = traveledDistance - segment1Length;
-			float t2 = GetTimeAtDistance(distanceOnSegment2, lookupTable2);
+			float t2 = Bezier::GetTimeAtSpecificDistance(distanceOnSegment2, lookupTable2);
 			shipPosition = Bezier::CalculatePoint(t2, p4, p5, p6, p7);
 			shipDirection = Bezier::CalculateLookingDirection(t2, p4, p5, p6, p7);
 		}
@@ -295,11 +260,11 @@ int main()
 		));  // - voor ship direction is quick fix direction
 
 
-		glm::mat4 modelMat = glm::mat4(1.0f);
-		modelMat = glm::translate(modelMat, shipPosition);
-		modelMat *= orientation;
-		modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden
-		modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
+		glm::mat4 tieFighterModelMat = glm::mat4(1.0f);
+		tieFighterModelMat = glm::translate(tieFighterModelMat, shipPosition);
+		tieFighterModelMat *= orientation;
+		tieFighterModelMat = glm::rotate(tieFighterModelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden
+		tieFighterModelMat = glm::scale(tieFighterModelMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
 		// nabooFighter
 		glm::mat4 nabooFighterMat = glm::mat4(1.0f);
@@ -325,8 +290,8 @@ int main()
 			{
 				laserActive = true;
 				laserDistance = 0.0f;
-				laserPosition = glm::vec3(modelMat * glm::vec4(2.65f, 1.1f, 3.35f, 1.0f));
-				laserDirection = glm::normalize(glm::vec3(modelMat * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
+				laserPosition = glm::vec3(tieFighterModelMat * glm::vec4(2.65f, 1.1f, 3.35f, 1.0f));
+				laserDirection = glm::normalize(glm::vec3(tieFighterModelMat * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
 				laserOrientation = orientation;
 			}
 
@@ -336,8 +301,9 @@ int main()
 		leftMouseButtonPressed = leftMouseButtonDown;
 
 		modelShader.use();
-		modelShader.setMat4("model", modelMat);
-		ourModel.Draw(modelShader);
+
+		modelShader.setMat4("model", tieFighterModelMat);
+		tieFighterModel.Draw(modelShader);
 
 		modelShader.setMat4("model", nabooFighterMat);
 		nabooFighterModel.Draw(modelShader);
@@ -624,7 +590,6 @@ void processInput(GLFWwindow* window)
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
-		if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 			tKeyPressed = false;
 
 	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !bKeyPressed)

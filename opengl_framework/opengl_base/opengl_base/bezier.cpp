@@ -34,73 +34,7 @@ std::vector<glm::vec3> Bezier::GenerateCurveForwardDifferencing(int steps, glm::
     return vertices;
 }
 
-std::vector<float> Bezier::GenerateSurfaceMesh(int uSteps, int vSteps, const std::vector<glm::vec3>& controlPoints) {
-    std::vector<float> vertices;
 
-    for (int i = 0; i < uSteps; i++) {
-        for (int j = 0; j < vSteps; j++) {
-
-            float u1 = (float)i / uSteps;
-            float v1 = (float)j / vSteps;
-            float u2 = (float)(i + 1) / uSteps;
-            float v2 = (float)(j + 1) / vSteps;
-
-            glm::vec3 p00 = CalculateSurfacePoint(u1, v1, controlPoints);
-            glm::vec3 p10 = CalculateSurfacePoint(u2, v1, controlPoints);
-            glm::vec3 p01 = CalculateSurfacePoint(u1, v2, controlPoints);
-            glm::vec3 p11 = CalculateSurfacePoint(u2, v2, controlPoints);
-
-            vertices.insert(vertices.end(), { p00.x, p00.y, p00.z,  u1, v1 });
-            vertices.insert(vertices.end(), { p10.x, p10.y, p10.z,  u2, v1 });
-            vertices.insert(vertices.end(), { p01.x, p01.y, p01.z,  u1, v2 });
-
-            vertices.insert(vertices.end(), { p10.x, p10.y, p10.z,  u2, v1 });
-            vertices.insert(vertices.end(), { p11.x, p11.y, p11.z,  u2, v2 });
-            vertices.insert(vertices.end(), { p01.x, p01.y, p01.z,  u1, v2 });
-        }
-    }
-    return vertices;
-}
-
-std::vector<float> Bezier::GenerateTrackMesh(int steps, float width, glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) {
-    std::vector<float> vertices;
-
-    std::vector<glm::vec3> curvePoints = GenerateCurveForwardDifferencing(steps, p0, p1, p2, p3);
-
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
-
-    for (int i = 0; i < steps; i++) {
-        glm::vec3 pos1 = curvePoints[i];
-        glm::vec3 pos2 = curvePoints[i + 1];
-
-        glm::vec3 dir1 = glm::normalize(pos2 - pos1);
-
-        glm::vec3 dir2 = dir1;
-        if (i + 2 <= steps) {
-            dir2 = glm::normalize(curvePoints[i + 2] - pos2);
-        }
-
-        glm::vec3 right1 = glm::normalize(glm::cross(dir1, up)) * (width * 0.5f);
-        glm::vec3 right2 = glm::normalize(glm::cross(dir2, up)) * (width * 0.5f);
-
-        glm::vec3 p1Left = pos1 - right1;
-        glm::vec3 p1Right = pos1 + right1;
-        glm::vec3 p2Left = pos2 - right2;
-        glm::vec3 p2Right = pos2 + right2;
-
-        float v1 = (float)i;
-        float v2 = (float)(i + 1);
-
-        vertices.insert(vertices.end(), { p1Left.x, p1Left.y, p1Left.z, 0.0f, v1 });
-        vertices.insert(vertices.end(), { p1Right.x, p1Right.y, p1Right.z, 1.0f, v1 });
-        vertices.insert(vertices.end(), { p2Left.x, p2Left.y, p2Left.z, 0.0f, v2 });
-
-        vertices.insert(vertices.end(), { p1Right.x, p1Right.y, p1Right.z, 1.0f, v1 });
-        vertices.insert(vertices.end(), { p2Right.x, p2Right.y, p2Right.z, 1.0f, v2 });
-        vertices.insert(vertices.end(), { p2Left.x, p2Left.y, p2Left.z, 0.0f, v2 });
-    }
-    return vertices;
-}
 
 
 std::vector<Bezier::LookupEntry> Bezier::GenerateDistanceLookupTable(

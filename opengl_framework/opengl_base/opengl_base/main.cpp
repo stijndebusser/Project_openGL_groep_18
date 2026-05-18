@@ -28,6 +28,8 @@ int PickNabooFighter(
 	const glm::mat4& nabooFighterMat);
 bool useShipCamera = false;
 bool tKeyPressed = false;
+bool helmetOn = true;
+bool hKeyPressed = false;
 bool leftMouseButtonPressed = false;
 int currentEffect = 0;
 
@@ -472,7 +474,7 @@ int main()
 		}
 
 
-		if (useShipCamera) {
+		if (useShipCamera && helmetOn) {
 			glDisable(GL_DEPTH_TEST); // ignore depth if helmet is on (2D)
 
 			chromaKeyShader.use();
@@ -590,6 +592,15 @@ void processInput(GLFWwindow* window)
 
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
 			tKeyPressed = false;
+
+	if (useShipCamera && glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS && !hKeyPressed)
+	{
+		helmetOn = !helmetOn;
+		hKeyPressed = true;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE)
+		hKeyPressed = false;
 
 	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !bKeyPressed)
 	{

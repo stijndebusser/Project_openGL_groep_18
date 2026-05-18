@@ -35,9 +35,5 @@ public:
         const std::vector<LookupEntry>& lookupTable
     );
 
-    // lookuptable: 100 wmaples -> key tijd, value distance, kan tijd hebben die ertussen valt en interpoleren -> kan tijd meegeven om te zien hoe ver op track zit
-
-    // raaklein zie slides begeir
-
 
 };

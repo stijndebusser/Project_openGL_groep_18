@@ -137,7 +137,7 @@ int main()
 	glm::vec3 sunPos = glm::vec3(-20.0f, 10.0f, -30.0f);
 
 	Shader modelShader("../../../shaders/model.vs", "../../../shaders/model.fs");
-	Shader trackShader("../../../shaders/7.4camera.vs", "../../../shaders/7.4camera.fs");
+	Shader trackShader("../../../shaders/camera.vs", "../../../shaders/camera.fs");
 	Shader lightShader("../../../shaders/model.vs", "../../../shaders/lightsource.fs");
 	Shader pickingShader("../../../shaders/model.vs", "../../../shaders/picking.fs");
 	Shader chromaKeyShader("../../../shaders/chromakeyshader.vs", "../../../shaders/chromakeyshader.fs");
@@ -214,7 +214,6 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		float nearPlane = useShipCamera ? 0.05f : 0.1f;
-		/*	float farPlane = 300.0f;*/
 		float farPlane = 5000.0f;
 
 		glm::mat4 projection = glm::perspective(
@@ -256,13 +255,6 @@ int main()
 			glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
 			glm::vec3 up = glm::normalize(glm::cross(right, forward));
 
-			// voor in shcip -> scherm nog niet echt transparant?
-			//glm::vec3 cameraPosition =   
-			//	shipPosition
-			//	- forward * 0.6f     
-			//	+ up * 0.70f         
-			//	- right * 0.55f;
-
 			glm::vec3 cameraPosition =
 				shipPosition
 				- forward * 0.8f
@@ -283,7 +275,6 @@ int main()
 		modelShader.setMat4("projection", projection);
 		modelShader.setMat4("view", view);
 
-		//modelShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
 		modelShader.setVec3("viewPos", camera.Position);
 
 		modelShader.setVec3("light.position", sunPos);
@@ -309,9 +300,6 @@ int main()
 		modelMat *= orientation;
 		modelMat = glm::rotate(modelMat, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // anders wijst schip naar beneden
 		modelMat = glm::scale(modelMat, glm::vec3(0.2f, 0.2f, 0.2f));
-
-		modelShader.setMat4("model", modelMat);
-		ourModel.Draw(modelShader);
 
 		// nabooFighter
 		glm::mat4 nabooFighterMat = glm::mat4(1.0f);
@@ -347,12 +335,15 @@ int main()
 		}
 		leftMouseButtonPressed = leftMouseButtonDown;
 
+		modelShader.use();
+		modelShader.setMat4("model", modelMat);
+		ourModel.Draw(modelShader);
+
 		modelShader.setMat4("model", nabooFighterMat);
 		nabooFighterModel.Draw(modelShader);
 
 
 		// rocks
-
 		modelShader.use();
 
 		for (size_t i = 0; i < fullRockPath.size() - 1; i++)
@@ -411,9 +402,7 @@ int main()
 		float rotationSpeed = 0.05f;
 		float rotationAngle = currentFrame * rotationSpeed;
 
-
 		// sun
-
 		glm::mat4 sunMat = glm::mat4(1.0f);
 		sunMat = glm::translate(sunMat, sunPos);
 		sunMat = glm::rotate(sunMat, rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));

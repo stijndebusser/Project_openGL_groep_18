@@ -269,7 +269,7 @@ int main()
 
 		// nabooFighter
 		glm::mat4 nabooFighterMat = glm::mat4(1.0f);
-		nabooFighterMat = glm::translate(nabooFighterMat, shipPosition + glm::normalize(shipDirection) * 5.0f + glm::vec3(0.0f, 0.8f, 0.0f));
+		nabooFighterMat = glm::translate(nabooFighterMat, shipPosition + glm::normalize(shipDirection) * 5.0f);
 		nabooFighterMat *= orientation;
 
 		nabooFighterMat = glm::rotate(nabooFighterMat, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
